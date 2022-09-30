@@ -18,13 +18,28 @@ INITIAL_R3 = 0.6830856444359062;
 // This is just for grid script.
 OFFSET_STEP = -1.5;
 
+// Remove an NPC from the space.
+function clearnNpc(npc) {
+    if (npc.peers != null) npc.peers.ws.close();
+    if (npc.communication != null) npc.communication.ws.close();
+}
+
 class AryumWS {
     constructor(url, joinRequestId) {
         this.url = url;
         this.joinRequestId = joinRequestId;
+        this.valid = true;
 
         this.r = 3;
         this.ws = new WebSocket(url);
+        this.ws.onclose(() => {
+            console.log(`closing: ${this.intervalIds}`);
+            this.q.length = 0;
+            this.intervalIds.forEach((i) => {
+                cancelInterval(i);
+            });
+            this.valid = false;
+        });
 
         this.q = [];
         this.intervalIds = [];
@@ -45,7 +60,10 @@ class AryumWS {
     }
 
     send_(message) {
-        this.q.push(message)
+        if (!this.valid) {
+            console.log(`${this.joinRequestId}: send after close.`);
+        }
+            this.q.push(message)
         this.flush();
     }
 
@@ -93,7 +111,7 @@ class AryumCommunication extends AryumWS {
 }
 
 class AriumPeers extends AryumWS {
-    constructor(joinRequestId, x, y, r1 = -0.7303382794059083, r3 = 0.6830856444359062, z = 0) {
+    constructor(joinRequestId, x, y, r1 = INITIAL_R1, r3 = INITIAL_R3, z = 0) {
         super('wss://s-usc1a-nss-2048.firebaseio.com/.ws?v=5&ns=arium-peers', joinRequestId);
         this.sendRaw('{"t":"d","d":{"r":3,"a":"q","b":{"p":"/userPositions/sl6wrg","h":""}}}');
         this.sendRaw('{"t":"d","d":{"r":4,"a":"q","b":{"p":"/broadcasters","q":{"sp":"sl6wrg","ep":"sl6wrg","i":"spaceId"},"t":4,"h":""}}}');
@@ -103,9 +121,9 @@ class AriumPeers extends AryumWS {
         this.sendRaw(`{"t":"d","d":{"r":8,"a":"p","b":{"p":"/userRotations/sl6wrg/${joinRequestId}","d":{"quaternion":{"0":0,"1":${r1},"2":0,"3":${r3}},"userId":"${CUR_USERID}"}}}}`);
         this.r = 9;
 
-        this.intervalId = setInterval(() => {
+        this.intervalId.push(setInterval(() => {
             this.sendRaw(0);
-        }, 45 * 1000);
+        }, 45 * 1000));
     }
 
     updatePosition(x, y, z = 0) {
@@ -118,7 +136,7 @@ class AriumPeers extends AryumWS {
 }
 
 class Npc {
-    constructor(displayName = 'NFThieves', x, y, r1 = -0.7303382794059083, r3 = 0.6830856444359062, z = 0) {
+    constructor(displayName = 'NFThieves', x, y, r1 = INITIAL_R1, r3 = INITIAL_R3, z = 0) {
         this.displayName = displayName;
         this.x = x;
         this.y = y;
@@ -154,13 +172,6 @@ class Npc {
         }));
     }
 
-    incrementR1(v = 0.1) {
-        if (this.peers == null) return;
-        this.r1 += v;
-        this.setDisplayName(this.r1);
-        this.peers.updateRotation(this.r1, this.r3)
-    }
-
     setDisplayName(displayName) {
         this.displayName = `${displayName}`;
         this.communication.updateDisplayName(this.displayName);
@@ -176,19 +187,27 @@ function grid() {
     npcs = [];
     for (let x_offset = 0; x_offset < 1; x_offset++) {
         for (let y_offset = 0; y_offset < 1; y_offset++) {
-            const x = 6.640265084629075 + x_offset * OFFSET_STEP;
-            const y = 2.1382288485504484 + y_offset * OFFSET_STEP;
+            const x = INITIAL_X + x_offset * OFFSET_STEP;
+            const y = INITIAL_Y + y_offset * OFFSET_STEP;
             npcs.push(new Npc(`rick_${x_offset}_${y_offset}`, x, y));
         }
     }
 }
 
 function rotate() {
-    rr1 = new Npc("r1", 6.640265084629075 - 4, 2.1382288485504484 - 4);
+    rr1 = new Npc("r1", INITIAL_X - 4, INITIAL_Y - 4);
 
     setInterval(() => {
         rr1.incrementR1();
     }, 500);
+}
+
+function setPhotoWithDelay(npcs, photoLocation) {
+    setTimeout(() => {
+        npcs.forEach(npc => {
+            npc.setPhoto(photoLocation);
+        });
+    }, delay);
 }
 
 function tama() {
@@ -201,15 +220,21 @@ function tama() {
     npcs.push(new Npc(six_words[4 % six_words.length], -6.652, -5.26, -0.0308, 0.9995));
     npcs.push(new Npc(six_words[5 % six_words.length], -4.81, -5.55, -0.0308, 0.9995));
 
-    setTimeout(() => {
-        npcs.forEach(npc => {
-            npc.setPhoto(PHOTO_LOCATION);
-        });
-    }, 12 * 1000);
+    setPhotoWithDelay(npcs, 12 * 1000);
+}
+
+function specificWorks() {
+    npcs = [];
+    npcs.push(new Npc("Nope", -24.3725, -2.067, 0.74114, 0.67133, 0.35)); // monalize
+    npcs.push(new Npc("Scam", -24.3158289, -2.64733181028, 0.71720398, 0.69686328, 0.35)); // cyberpunk
+    npcs.push(new Npc("Shit", -24.185439, -20.12608013, 0.6887632, 0.7249863, 0.35)); // devil
+
+    setPhotoWithDelay(npcs, 11 * 1000);
 }
 
 function realMain() {
     tama();
+    specificWorks();
 }
 
 realMain();
