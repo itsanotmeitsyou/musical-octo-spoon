@@ -183,6 +183,14 @@ function grid() {
     }
 }
 
+function rotate() {
+    rr1 = new Npc("r1", 6.640265084629075 - 4, 2.1382288485504484 - 4);
+
+    setInterval(() => {
+        rr1.incrementR1();
+    }, 500);
+}
+
 function tama() {
     six_words = "THIS IS|NOT AN|EXHIBITION,|IT'S A|CRYPTO|COMMERCIAL".split('|');
     npcs = [];
@@ -197,15 +205,7 @@ function tama() {
         npcs.forEach(npc => {
             npc.setPhoto(PHOTO_LOCATION);
         });
-    }, 3000);
-}
-
-function rotate() {
-    rr1 = new Npc("r1", 6.640265084629075 - 4, 2.1382288485504484 - 4);
-
-    setInterval(() => {
-        rr1.incrementR1();
-    }, 500);
+    }, 12 * 1000);
 }
 
 function realMain() {
