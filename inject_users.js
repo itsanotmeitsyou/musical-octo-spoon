@@ -121,7 +121,7 @@ class AriumPeers extends AryumWS {
         this.sendRaw(`{"t":"d","d":{"r":8,"a":"p","b":{"p":"/userRotations/sl6wrg/${joinRequestId}","d":{"quaternion":{"0":0,"1":${r1},"2":0,"3":${r3}},"userId":"${CUR_USERID}"}}}}`);
         this.r = 9;
 
-        this.intervalId.push(setInterval(() => {
+        this.intervalIds.push(setInterval(() => {
             this.sendRaw(0);
         }, 45 * 1000));
     }
@@ -184,7 +184,7 @@ class Npc {
 }
 
 function grid() {
-    npcs = [];
+    const npcs = [];
     for (let x_offset = 0; x_offset < 1; x_offset++) {
         for (let y_offset = 0; y_offset < 1; y_offset++) {
             const x = INITIAL_X + x_offset * OFFSET_STEP;
@@ -202,17 +202,17 @@ function rotate() {
     }, 500);
 }
 
-function setPhotoWithDelay(npcs, photoLocation) {
+function setPhotoWithDelay(npcs, delay) {
     setTimeout(() => {
         npcs.forEach(npc => {
-            npc.setPhoto(photoLocation);
+            npc.setPhoto(PHOTO_LOCATION);
         });
     }, delay);
 }
 
 function tama() {
     six_words = "THIS IS|NOT AN|EXHIBITION,|IT'S A|CRYPTO|COMMERCIAL".split('|');
-    npcs = [];
+    const npcs = [];
     npcs.push(new Npc(six_words[0 % six_words.length], -14.02, -4.10, -0.0308, 0.9995));
     npcs.push(new Npc(six_words[1 % six_words.length], -12.178, -4.39, -0.0308, 0.9995));
     npcs.push(new Npc(six_words[2 % six_words.length], -10.336, -4.68, -0.0308, 0.9995));
@@ -224,7 +224,7 @@ function tama() {
 }
 
 function specificWorks() {
-    npcs = [];
+    const npcs = [];
     npcs.push(new Npc("Nope", -24.3725, -2.067, 0.74114, 0.67133, 0.35)); // monalize
     npcs.push(new Npc("Scam", -24.3158289, -2.64733181028, 0.71720398, 0.69686328, 0.35)); // cyberpunk
     npcs.push(new Npc("Shit", -24.185439, -20.12608013, 0.6887632, 0.7249863, 0.35)); // devil
