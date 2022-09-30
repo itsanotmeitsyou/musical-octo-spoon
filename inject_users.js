@@ -36,7 +36,7 @@ class AryumWS {
             console.log(`closing: ${this.intervalIds}`);
             this.q.length = 0;
             this.intervalIds.forEach((i) => {
-                cancelInterval(i);
+                clearInterval(i);
             });
             this.valid = false;
         };
