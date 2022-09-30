@@ -3,7 +3,7 @@ function logger(name) {
 }
 
 // This updates every ~30 minutes? need to get it live.
-CUR_AUTH = 'eyJhbGciOiJSUzI1NiIsImtpZCI6IjU4NWI5MGI1OWM2YjM2ZDNjOTBkZjBlOTEwNDQ1M2U2MmY4ODdmNzciLCJ0eXAiOiJKV1QifQ.eyJuYW1lIjoidGVzdCIsInBpY3R1cmUiOiJodHRwczovL2Fzc2V0cy52bHRzLnB3L3Byb2ZpbGVJbWFnZXMvem94dng5M0Z6YmQycmRLWkhkZ3FmN05uMXRxMi9NbzUucG5nIiwicHJvdmlkZXJfaWQiOiJhbm9ueW1vdXMiLCJpc3MiOiJodHRwczovL3NlY3VyZXRva2VuLmdvb2dsZS5jb20vdm9sdGEtZXZlbnRzLTI5NDcxNSIsImF1ZCI6InZvbHRhLWV2ZW50cy0yOTQ3MTUiLCJhdXRoX3RpbWUiOjE2NjQ1MzQyNTQsInVzZXJfaWQiOiJ6b3h2eDkzRnpiZDJyZEtaSGRncWY3Tm4xdHEyIiwic3ViIjoiem94dng5M0Z6YmQycmRLWkhkZ3FmN05uMXRxMiIsImlhdCI6MTY2NDU1MTE4NiwiZXhwIjoxNjY0NTU0Nzg2LCJmaXJlYmFzZSI6eyJpZGVudGl0aWVzIjp7fSwic2lnbl9pbl9wcm92aWRlciI6ImFub255bW91cyJ9fQ.eHSgzxFUJf2SkKdfNJhhGynHls3d9tRLuxTjrnhaUHto6A098gDDqWrZPQO4CuGqsceUf0a-rJvfoWQKbKSFST3j5TUKfyuYjCvJmbLlWOeBh6Ie1gg7jwuEdAI41PQY0pNOBtcDj4n7CT5A6YkFCnmabk6LBEgVfihQbgMLCwWEvH2PNdySxTFToYoRW4H9W-MnSdtzoBYGcM0jkRdnO_RyfTE0yJbT3cy1NAa7WlDw44xmi5_NjfS7hrRJsKYc_7wjwdqCEkdEcOhXW2l8Z5A9671n6kUo64SxYacXR1Y5m_n5RLSQewP1632vyORLK5neKUo2xU3XlAIgKzXQ5w';
+CUR_AUTH = 'eyJhbGciOiJSUzI1NiIsImtpZCI6IjU4NWI5MGI1OWM2YjM2ZDNjOTBkZjBlOTEwNDQ1M2U2MmY4ODdmNzciLCJ0eXAiOiJKV1QifQ.eyJwcm92aWRlcl9pZCI6ImFub255bW91cyIsImlzcyI6Imh0dHBzOi8vc2VjdXJldG9rZW4uZ29vZ2xlLmNvbS92b2x0YS1ldmVudHMtMjk0NzE1IiwiYXVkIjoidm9sdGEtZXZlbnRzLTI5NDcxNSIsImF1dGhfdGltZSI6MTY2NDU2MjUwOSwidXNlcl9pZCI6IkhIWlZ4NDFDdWRlMk56MjAyZ3F1SEJiUldQSjMiLCJzdWIiOiJISFpWeDQxQ3VkZTJOejIwMmdxdUhCYlJXUEozIiwiaWF0IjoxNjY0NTYyNTA5LCJleHAiOjE2NjQ1NjYxMDksImZpcmViYXNlIjp7ImlkZW50aXRpZXMiOnt9LCJzaWduX2luX3Byb3ZpZGVyIjoiYW5vbnltb3VzIn19.FhNdBQzcHVVS_4namAyhymXBs8e5z1dqsT_B8MfPbOe_wo-sEdYVdTKBw274qY-EMvi9ylTPFq9DS9s8S-P9u1GO3w_mIM_8XL2ZUtB7nwj88HC-sMuR7FkTghUxV1WRXZQLF7jGiXoj-AQ-fhcEGBHxbYC1A7uBUcqcnFdkvCZhLvrd0ZZX8rqPuEkxf9sTljkLSmvwGo3mqRNOV5c_a0w2rBSgIQlYD7BCTZDeJxjIvpxyDLHB07WmTD_sVROf6R3OCFLKMFpnue2oCssoDHNXDiwl5dj-W8WGwQy5F0fWtT6B9_u7SyXCpZ-qncHLFL5wpzhQWQuTY_rKNrD9Iw';
 // This updates 1 every 24 hours and can be retrieved live from WS.
 CUR_USERID = 'zoxvx93Fzbd2rdKZHdgqf7Nn1tq2';
 // This was created after uploading a file, contains CUR_USERID, probably will require uploading daily.
@@ -32,14 +32,14 @@ class AryumWS {
 
         this.r = 3;
         this.ws = new WebSocket(url);
-        this.ws.onclose(() => {
+        this.ws.onclose = () => {
             console.log(`closing: ${this.intervalIds}`);
             this.q.length = 0;
             this.intervalIds.forEach((i) => {
                 cancelInterval(i);
             });
             this.valid = false;
-        });
+        };
 
         this.q = [];
         this.intervalIds = [];
