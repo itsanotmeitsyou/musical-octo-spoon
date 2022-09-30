@@ -63,7 +63,7 @@ class AryumWS {
         if (!this.valid) {
             console.log(`${this.joinRequestId}: send after close.`);
         }
-            this.q.push(message)
+        this.q.push(message)
         this.flush();
     }
 
