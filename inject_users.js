@@ -3,7 +3,7 @@ function logger(name) {
 }
 
 // This updates every ~30 minutes? need to get it live.
-CUR_AUTH = 'eyJhbGciOiJSUzI1NiIsImtpZCI6IjU4NWI5MGI1OWM2YjM2ZDNjOTBkZjBlOTEwNDQ1M2U2MmY4ODdmNzciLCJ0eXAiOiJKV1QifQ.eyJwcm92aWRlcl9pZCI6ImFub255bW91cyIsImlzcyI6Imh0dHBzOi8vc2VjdXJldG9rZW4uZ29vZ2xlLmNvbS92b2x0YS1ldmVudHMtMjk0NzE1IiwiYXVkIjoidm9sdGEtZXZlbnRzLTI5NDcxNSIsImF1dGhfdGltZSI6MTY2NDU2MjUwOSwidXNlcl9pZCI6IkhIWlZ4NDFDdWRlMk56MjAyZ3F1SEJiUldQSjMiLCJzdWIiOiJISFpWeDQxQ3VkZTJOejIwMmdxdUhCYlJXUEozIiwiaWF0IjoxNjY0NTYyNTA5LCJleHAiOjE2NjQ1NjYxMDksImZpcmViYXNlIjp7ImlkZW50aXRpZXMiOnt9LCJzaWduX2luX3Byb3ZpZGVyIjoiYW5vbnltb3VzIn19.FhNdBQzcHVVS_4namAyhymXBs8e5z1dqsT_B8MfPbOe_wo-sEdYVdTKBw274qY-EMvi9ylTPFq9DS9s8S-P9u1GO3w_mIM_8XL2ZUtB7nwj88HC-sMuR7FkTghUxV1WRXZQLF7jGiXoj-AQ-fhcEGBHxbYC1A7uBUcqcnFdkvCZhLvrd0ZZX8rqPuEkxf9sTljkLSmvwGo3mqRNOV5c_a0w2rBSgIQlYD7BCTZDeJxjIvpxyDLHB07WmTD_sVROf6R3OCFLKMFpnue2oCssoDHNXDiwl5dj-W8WGwQy5F0fWtT6B9_u7SyXCpZ-qncHLFL5wpzhQWQuTY_rKNrD9Iw';
+CUR_AUTH = 'eyJhbGciOiJSUzI1NiIsImtpZCI6IjU4NWI5MGI1OWM2YjM2ZDNjOTBkZjBlOTEwNDQ1M2U2MmY4ODdmNzciLCJ0eXAiOiJKV1QifQ.eyJwcm92aWRlcl9pZCI6ImFub255bW91cyIsImlzcyI6Imh0dHBzOi8vc2VjdXJldG9rZW4uZ29vZ2xlLmNvbS92b2x0YS1ldmVudHMtMjk0NzE1IiwiYXVkIjoidm9sdGEtZXZlbnRzLTI5NDcxNSIsImF1dGhfdGltZSI6MTY2NDU2MjUwOSwidXNlcl9pZCI6IkhIWlZ4NDFDdWRlMk56MjAyZ3F1SEJiUldQSjMiLCJzdWIiOiJISFpWeDQxQ3VkZTJOejIwMmdxdUhCYlJXUEozIiwiaWF0IjoxNjY0NjEzMTY4LCJleHAiOjE2NjQ2MTY3NjgsImZpcmViYXNlIjp7ImlkZW50aXRpZXMiOnt9LCJzaWduX2luX3Byb3ZpZGVyIjoiYW5vbnltb3VzIn19.DuCpgqQpKhGSbwN9NyV-grKP7JHiGJ6wI5gvzljBiU5eodUUPOaeJD1Z1HXlWohKj9UO8gR77i0mg0aB9ex93yjiC9-e7QGwzwW6Nc7hEyn07DgaGhaIwIQidf3N6ZO4dUgVQCaaMS18eI6qGZkZtQ-fuv1--FBa2MekdKU8aELT69Vwu9ir0BGr1BZUlhrJNgTn2Mq-yLa6jUdZB4OXlvEslJhuaTNMc2kI6l2k0tE_ldEIbxNeGwRbtAaWPIUiLRv8KlvjGv2pCa4rPXKfsAIyw56JHH3R-5ax1SR5eTpmeqQkMkZH1_zj5HaUqgHPb9Ky2AAFipNg1FETxGVNCA';
 // This updates 1 every 24 hours and can be retrieved live from WS.
 CUR_USERID = 'HHZVx41Cude2Nz202gquHBbRWPJ3';
 // This was created after uploading a file, contains CUR_USERID, probably will require uploading daily.
@@ -24,8 +24,30 @@ function clearnNpc(npc) {
     if (npc.communication != null) npc.communication.ws.close();
 }
 
+function wslisten(fn) {
+    fn = fn || console.log
+    let property = Object.getOwnPropertyDescriptor
+        (MessageEvent.prototype, "data")
+    const data = property.get
+    function lookAtMessage() { //to replace get function
+        let socket = this.currentTarget instanceof WebSocket
+        if (!socket) { return data.call(this) }
+        let msg = data.call(this)
+        Object.defineProperty(this, "data", { value: msg }) //anti-loop
+        fn({ data: msg, socket: this.currentTarget, event: this })
+        return msg
+    }
+    property.get = lookAtMessage
+    Object.defineProperty
+        (MessageEvent.prototype, "data", property)
+}
+
+wslisten(({ data }) => {
+    pdata = JSON.parse(data);
+});
+
 class AryumWS {
-    constructor(url, joinRequestId) {
+    constructor(url, joinRequestId, onCloseCallback) {
         this.url = url;
         this.joinRequestId = joinRequestId;
         this.valid = true;
@@ -33,11 +55,12 @@ class AryumWS {
         this.r = 3;
         this.ws = new WebSocket(url);
         this.ws.onclose = () => {
-            console.log(`closing: ${this.intervalIds}`);
+            console.log(`closing: ${this.joinRequestId}`);
             this.q.length = 0;
             this.intervalIds.forEach((i) => {
                 clearInterval(i);
             });
+            onCloseCallback();
             this.valid = false;
         };
 
@@ -78,8 +101,8 @@ class AryumWS {
 }
 
 class AryumCommunication extends AryumWS {
-    constructor(joinRequestId, displayName = '') {
-        super('wss://s-usc1a-nss-2000.firebaseio.com/.ws?v=5&ns=arium-communication', joinRequestId);
+    constructor(joinRequestId, displayName = '', onCloseCallback) {
+        super('wss://s-usc1a-nss-2000.firebaseio.com/.ws?v=5&ns=arium-communication', joinRequestId, onCloseCallback);
         this.send('q', '{"p":"/userSessions","q":{"sp":"sl6wrg","ep":"sl6wrg","i":"spaceId"},"t":1,"h":""}');
         this.send('q', '{"p":"/userMetadata","q":{"sp":"sl6wrg","ep":"sl6wrg","i":"spaceId"},"t":2,"h":""}');
         this.send('p', `{"p":"/userMetadata/${joinRequestId}","d":{"userId":"${CUR_USERID}"}}`);
@@ -111,8 +134,8 @@ class AryumCommunication extends AryumWS {
 }
 
 class AriumPeers extends AryumWS {
-    constructor(joinRequestId, x, y, r1 = INITIAL_R1, r3 = INITIAL_R3, z = 0) {
-        super('wss://s-usc1a-nss-2048.firebaseio.com/.ws?v=5&ns=arium-peers', joinRequestId);
+    constructor(joinRequestId, x, y, r1, r3, z, onCloseCallback) {
+        super('wss://s-usc1a-nss-2048.firebaseio.com/.ws?v=5&ns=arium-peers', joinRequestId, onCloseCallback);
         this.sendRaw('{"t":"d","d":{"r":3,"a":"q","b":{"p":"/userPositions/sl6wrg","h":""}}}');
         this.sendRaw('{"t":"d","d":{"r":4,"a":"q","b":{"p":"/broadcasters","q":{"sp":"sl6wrg","ep":"sl6wrg","i":"spaceId"},"t":4,"h":""}}}');
         this.sendRaw('{"t":"d","d":{"r":5,"a":"q","b":{"p":"/userRotations/sl6wrg","h":""}}}');
@@ -136,13 +159,28 @@ class AriumPeers extends AryumWS {
 }
 
 class Npc {
-    constructor(displayName = 'NFThieves', x, y, r1 = INITIAL_R1, r3 = INITIAL_R3, z = 0) {
+    constructor(displayName = 'NFThieves', x, y, r1 = INITIAL_R1, r3 = INITIAL_R3, z = 0, photo = PHOTO_LOCATION) {
         this.displayName = displayName;
         this.x = x;
         this.y = y;
         this.z = z;
         this.r1 = r1;
         this.r3 = r3;
+        this.photo = photo;
+        this.init();
+    }
+
+    setDisplayName(displayName) {
+        this.displayName = `${displayName}`;
+        this.communication.updateDisplayName(this.displayName);
+    }
+
+    setPhoto(photoLocation) {
+        if (this.communication === null || photoLocation == '') return;
+        this.communication.updatePhoto(this.displayName, photoLocation);
+    }
+
+    init() {
         this.joinRequestId = '';
         this.communication = null;
         this.peers = null;
@@ -166,20 +204,11 @@ class Npc {
         }).then(response => response.json().then(value => {
             this.joinRequestId = value.result.joinRequestId;
             console.log('constructed NPC');
-            this.communication = new AryumCommunication(this.joinRequestId, this.displayName);
-            this.peers = new AriumPeers(this.joinRequestId, x, y, r1, r3, z);
+            this.communication = new AryumCommunication(this.joinRequestId, this.displayName, () => this.init());
+            this.peers = new AriumPeers(this.joinRequestId, this.x, this.y, this.r1, this.r3, this.z, () => this.init());
+            setTimeout(() => void this.setPhoto(this.photo), 7 * 1000);
             console.log(this);
         }));
-    }
-
-    setDisplayName(displayName) {
-        this.displayName = `${displayName}`;
-        this.communication.updateDisplayName(this.displayName);
-    }
-
-    setPhoto(photoLocation) {
-        if (this.communication === null) return;
-        this.communication.updatePhoto(this.displayName, photoLocation);
     }
 }
 
@@ -219,8 +248,6 @@ function tama() {
     npcs.push(new Npc(six_words[3 % six_words.length], -8.494, -4.97, -0.0308, 0.9995));
     npcs.push(new Npc(six_words[4 % six_words.length], -6.652, -5.26, -0.0308, 0.9995));
     npcs.push(new Npc(six_words[5 % six_words.length], -4.81, -5.55, -0.0308, 0.9995));
-
-    setPhotoWithDelay(npcs, 12 * 1000);
 }
 
 function specificWorks() {
@@ -228,8 +255,6 @@ function specificWorks() {
     npcs.push(new Npc("Nope", -24.3725, -0.2067, 0.74114, 0.67133, 0.35)); // monalize
     npcs.push(new Npc("Scam", -24.3158289, -2.64733181028, 0.71720398, 0.69686328, 0.35)); // cyberpunk
     npcs.push(new Npc("Shit", -24.185439, -20.12608013, 0.6887632, 0.7249863, 0.35)); // devil
-
-    setPhotoWithDelay(npcs, 11 * 1000);
 }
 
 function realMain() {
