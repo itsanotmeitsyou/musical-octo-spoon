@@ -3,7 +3,7 @@ function logger(name) {
 }
 
 // This updates every ~30 minutes? need to get it live.
-CUR_AUTH = 'eyJhbGciOiJSUzI1NiIsImtpZCI6IjU4NWI5MGI1OWM2YjM2ZDNjOTBkZjBlOTEwNDQ1M2U2MmY4ODdmNzciLCJ0eXAiOiJKV1QifQ.eyJwcm92aWRlcl9pZCI6ImFub255bW91cyIsImlzcyI6Imh0dHBzOi8vc2VjdXJldG9rZW4uZ29vZ2xlLmNvbS92b2x0YS1ldmVudHMtMjk0NzE1IiwiYXVkIjoidm9sdGEtZXZlbnRzLTI5NDcxNSIsImF1dGhfdGltZSI6MTY2NDU2MjUwOSwidXNlcl9pZCI6IkhIWlZ4NDFDdWRlMk56MjAyZ3F1SEJiUldQSjMiLCJzdWIiOiJISFpWeDQxQ3VkZTJOejIwMmdxdUhCYlJXUEozIiwiaWF0IjoxNjY0NjEzMTY4LCJleHAiOjE2NjQ2MTY3NjgsImZpcmViYXNlIjp7ImlkZW50aXRpZXMiOnt9LCJzaWduX2luX3Byb3ZpZGVyIjoiYW5vbnltb3VzIn19.DuCpgqQpKhGSbwN9NyV-grKP7JHiGJ6wI5gvzljBiU5eodUUPOaeJD1Z1HXlWohKj9UO8gR77i0mg0aB9ex93yjiC9-e7QGwzwW6Nc7hEyn07DgaGhaIwIQidf3N6ZO4dUgVQCaaMS18eI6qGZkZtQ-fuv1--FBa2MekdKU8aELT69Vwu9ir0BGr1BZUlhrJNgTn2Mq-yLa6jUdZB4OXlvEslJhuaTNMc2kI6l2k0tE_ldEIbxNeGwRbtAaWPIUiLRv8KlvjGv2pCa4rPXKfsAIyw56JHH3R-5ax1SR5eTpmeqQkMkZH1_zj5HaUqgHPb9Ky2AAFipNg1FETxGVNCA';
+CUR_AUTH = 'eyJhbGciOiJSUzI1NiIsImtpZCI6IjU4NWI5MGI1OWM2YjM2ZDNjOTBkZjBlOTEwNDQ1M2U2MmY4ODdmNzciLCJ0eXAiOiJKV1QifQ.eyJwcm92aWRlcl9pZCI6ImFub255bW91cyIsImlzcyI6Imh0dHBzOi8vc2VjdXJldG9rZW4uZ29vZ2xlLmNvbS92b2x0YS1ldmVudHMtMjk0NzE1IiwiYXVkIjoidm9sdGEtZXZlbnRzLTI5NDcxNSIsImF1dGhfdGltZSI6MTY2NDU2MjUwOSwidXNlcl9pZCI6IkhIWlZ4NDFDdWRlMk56MjAyZ3F1SEJiUldQSjMiLCJzdWIiOiJISFpWeDQxQ3VkZTJOejIwMmdxdUhCYlJXUEozIiwiaWF0IjoxNjY0NjE5NzY5LCJleHAiOjE2NjQ2MjMzNjksImZpcmViYXNlIjp7ImlkZW50aXRpZXMiOnt9LCJzaWduX2luX3Byb3ZpZGVyIjoiYW5vbnltb3VzIn19.l62ptHLxI0QULy9fxOmkdNxc28LulCM_ChqFOTN2kNdiXCQrPkoW8nWFjXAvujt32TVeEq47JgQFoxXLGvMOPh8oeYLHt28gFXKOvS5jv0tYjCWjiRSt-iRpv9S2VdFR2iMxfeXQCMaXsGg_hgNmsgtJ6cUzAse9e0hsyviRm0ycSg60ww6rIgf-6hUIrBRuzZ1aK9-LryMOFfuGWPZDDrziEkH4qVwgkYj-0FZbHgN7suwsNkDwzuiSdHoVFEvpLQHmKbaA0xehyFRich1JyNAt3o1ZuQoHyzNTv1-s5HsgbZGQzjZd38Loii2tmlfq4cbYZoM5s9FU1P8T3fyB8Q';
 // This updates 1 every 24 hours and can be retrieved live from WS.
 CUR_USERID = 'HHZVx41Cude2Nz202gquHBbRWPJ3';
 // This was created after uploading a file, contains CUR_USERID, probably will require uploading daily.
@@ -52,7 +52,7 @@ class AryumWS {
         this.joinRequestId = joinRequestId;
         this.valid = true;
 
-        this.r = 3;
+        this.r = 1;
         this.ws = new WebSocket(url);
         this.ws.onclose = () => {
             console.log(`closing: ${this.joinRequestId}`);
@@ -67,10 +67,18 @@ class AryumWS {
         this.q = [];
         this.intervalIds = [];
 
-        this.send_('{"t":"d","d":{"r":1,"a":"s","b":{"c":{"sdk.js.8-10-0":1}}}}');
-        this.send_(`{"t":"d","d":{"r":2,"a":"auth","b":{"cred":"${CUR_AUTH}"}}}`);
+        this.sendSdk();
+        this.sendAuth()
 
         this.intervalIds.push(setInterval(() => this.flush(), 1000));
+    }
+
+    sendSdk() {
+        this.send('s', '{"c":{"sdk.js.8-10-0":1}}');
+    }
+
+    sendAuth() {
+        this.send('auth', `{"cred":"${CUR_AUTH}"}`);
     }
 
     sendRaw(message) {
@@ -118,8 +126,7 @@ class AryumCommunication extends AryumWS {
         this.send('m', `{"p":"/userSessions/${joinRequestId}","d":{"active":true,"lastChanged":{".sv":"timestamp"}}}`);
         this.send('m', `{"p":"/userMetadata/${joinRequestId}","d":{"metadata":{"displayName": "${displayName}"}}}`);
         this.intervalIds.push(setInterval(() => {
-            console.log("sending life signal on arium_communitcation");
-            this.sendRaw(`{"t":"d","d":{"r":${this.r},"a":"m","b":{"p":"/userSessions/${joinRequestId}","d":{"active":true,"lastChanged":{".sv":"timestamp"}}}}}`);
+            this.send('m', `{"p":"/userSessions/${joinRequestId}","d":{"active":true,"lastChanged":{".sv":"timestamp"}}}`);
             this.r++;
         }, 30000));
     }
@@ -135,15 +142,14 @@ class AryumCommunication extends AryumWS {
 
 class AriumPeers extends AryumWS {
     constructor(joinRequestId, x, y, r1, r3, z, onCloseCallback) {
-        super('wss://s-usc1a-nss-2048.firebaseio.com/.ws?v=5&ns=arium-peers', joinRequestId, onCloseCallback);
-        this.sendRaw('{"t":"d","d":{"r":3,"a":"q","b":{"p":"/userPositions/sl6wrg","h":""}}}');
-        this.sendRaw('{"t":"d","d":{"r":4,"a":"q","b":{"p":"/broadcasters","q":{"sp":"sl6wrg","ep":"sl6wrg","i":"spaceId"},"t":4,"h":""}}}');
-        this.sendRaw('{"t":"d","d":{"r":5,"a":"q","b":{"p":"/userRotations/sl6wrg","h":""}}}');
-        this.sendRaw(`{"t":"d","d":{"r":6,"a":"p","b":{"p":"/userDeviceOrientations/${joinRequestId}","d":{"orientation":0,"userId":"${CUR_USERID}"}}}}`);
-        this.sendRaw(`{"t":"d","d":{"r":7,"a":"p","b":{"p":"/userPositions/sl6wrg/${joinRequestId}","d":{"position":{"0":${x},"1":${z},"2":${y}},"userId":"${CUR_USERID}"}}}}`);
-        this.sendRaw(`{"t":"d","d":{"r":8,"a":"p","b":{"p":"/userRotations/sl6wrg/${joinRequestId}","d":{"quaternion":{"0":0,"1":${r1},"2":0,"3":${r3}},"userId":"${CUR_USERID}"}}}}`);
-        this.r = 9;
-
+        super('wss://s-usc1a-nss-2048.firebaseio.com/.ws?v=5&ns=arium-peers', joinRequestId, onCloseCallback);        
+        this.send('q','{"p":"/userPositions/sl6wrg","h":""}');
+        this.send('q','{"p":"/broadcasters","q":{"sp":"sl6wrg","ep":"sl6wrg","i":"spaceId"},"t":4,"h":""}');
+        this.send('q','{"p":"/userRotations/sl6wrg","h":""}');
+        this.send('p', `{"p":"/userDeviceOrientations/${joinRequestId}","d":{"orientation":0,"userId":"${CUR_USERID}"}}`);
+        this.send('p', `{"p":"/userPositions/sl6wrg/${joinRequestId}","d":{"position":{"0":${x},"1":${z},"2":${y}},"userId":"${CUR_USERID}"}}`);
+        this.send('p', `{"p":"/userRotations/sl6wrg/${joinRequestId}","d":{"quaternion":{"0":0,"1":${r1},"2":0,"3":${r3}},"userId":"${CUR_USERID}"}}`);
+        
         this.intervalIds.push(setInterval(() => {
             this.sendRaw(0);
         }, 45 * 1000));
