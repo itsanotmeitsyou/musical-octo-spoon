@@ -2,8 +2,6 @@ function logger(name) {
     return (message) => console.log(`${name}: ${message}.`);
 }
 
-// This updates every ~30 minutes? need to get it live.
-CUR_AUTH = 'eyJhbGciOiJSUzI1NiIsImtpZCI6IjU4NWI5MGI1OWM2YjM2ZDNjOTBkZjBlOTEwNDQ1M2U2MmY4ODdmNzciLCJ0eXAiOiJKV1QifQ.eyJwcm92aWRlcl9pZCI6ImFub255bW91cyIsImlzcyI6Imh0dHBzOi8vc2VjdXJldG9rZW4uZ29vZ2xlLmNvbS92b2x0YS1ldmVudHMtMjk0NzE1IiwiYXVkIjoidm9sdGEtZXZlbnRzLTI5NDcxNSIsImF1dGhfdGltZSI6MTY2NDU2MjUwOSwidXNlcl9pZCI6IkhIWlZ4NDFDdWRlMk56MjAyZ3F1SEJiUldQSjMiLCJzdWIiOiJISFpWeDQxQ3VkZTJOejIwMmdxdUhCYlJXUEozIiwiaWF0IjoxNjY0NjM2NDA2LCJleHAiOjE2NjQ2NDAwMDYsImZpcmViYXNlIjp7ImlkZW50aXRpZXMiOnt9LCJzaWduX2luX3Byb3ZpZGVyIjoiYW5vbnltb3VzIn19.XNeYI7uPLDNfjr0V9qydXius_iw5QSwMQoMkql-BVG6Oht7_FkVyDuNXqjNKSqSfcio21CkDEhNmrqhshwz0vOlKuwAhlA2qABh4FWTCJzJaie6PUEORq7m6Mqu2z4RAWCLM_xb8Q3hyEBR4Rxh1kfJZk89MT7G-clMTGR1tScrUMEjl4vEfOvtSuDvwGtjVfuZ9QNi-aIyos5LODg8K9J7iFAPtJ4txPl1PuBTKgqsWdqO2xJWFrARtp6SbDrzXm-jWxZaMlVMHP8sBuxqOgXifAbeQrTS093wLKuLhDu4gyzZKhLtGBYhWdVTZ4edxxRnS1GxILKeELSjfCpVA-A';
 // This updates 1 every 24 hours and can be retrieved live from WS.
 CUR_USERID = 'HHZVx41Cude2Nz202gquHBbRWPJ3';
 // This was created after uploading a file, contains CUR_USERID, probably will require uploading daily.
@@ -42,16 +40,93 @@ function clearnNpc(npc) {
 //         (MessageEvent.prototype, 'data', property)
 // }
 
-// wslisten(({ data , event}) => {
-//     console.log(JSON.parse(event.data)?.d?.a);
-//     // pdata = JSON.parse(data);
-//     // console.log(pdata?.d?.a);
-//     // if (pdata?.d?.a == 'auth') {
-//     //     console.log('got one');
-//     // }
-// });
+// utils
+
+function findVal(o, targetVal, prefix) {
+    const VISITED_KEY = 'findval_visited';
+    const VISITED_VAL = Math.random() * 100000000000000;
+    const CANDIDATE_PLACEHOLDER = 'fdnsakl nj3k2 njkfds sa90 jciosa mkl32';
+    console.log(VISITED_KEY);
+    console.log(VISITED_VAL);
+
+    let results = [];
+
+    const findValInner = (object, val, prefix) => {
+        Object.keys(object).forEach((k) => {
+            const name = prefix ? `${prefix}.${k}` : k;
+            console.log(name);
+            let candidate = CANDIDATE_PLACEHOLDER;
+            try {
+                candidate = object[k];
+            } catch (e) {
+                console.log(e);
+            }
+            if (candidate === CANDIDATE_PLACEHOLDER) return;
+            if (candidate === val || (typeof candidate === 'string' && candidate.includes(val))) {
+                results = [...results, { path: name, value: candidate }];
+                console.log('Found!');
+                return;
+            }
+            else if (candidate && typeof candidate === 'object') {
+                if (candidate[VISITED_KEY] == VISITED_VAL) {
+                    console.log('\tvisited.');
+                    return;
+                };
+                candidate[VISITED_KEY] = VISITED_VAL;
+                findValInner(candidate, val, name);
+            }
+        });
+    }
+    findValInner(o, targetVal, prefix);
+    return results;
+}
+
+function findType(o, typename, prefix) {
+    const VISITED_KEY = 'findval_visited';
+    const VISITED_VAL = Math.random() * 100000000000000;
+    const CANDIDATE_PLACEHOLDER = 'fdnsakl nj3k2 njkfds sa90 jciosa mkl32';
+    console.log(VISITED_KEY);
+    console.log(VISITED_VAL);
+
+    let results = [];
+
+    const findValInner = (object, val, prefix) => {
+        Object.keys(object).forEach((k) => {
+            const name = prefix ? `${prefix}.${k}` : k;
+            console.log(name);
+            let candidate = CANDIDATE_PLACEHOLDER;
+            try {
+                candidate = Object.prototype.toString.call(object[k]);
+                console.log(candidate);
+            } catch (e) {
+                console.log(e);
+            }
+            if (candidate === CANDIDATE_PLACEHOLDER) return;
+            if (candidate === val ||
+                (typeof candidate === 'string' && candidate.toLowerCase().includes(`${val}`.toLowerCase()))) {
+                results = [...results, { path: name, value: object[k] }];
+                console.log('Found!');
+                return;
+            }
+            else if (object[k] && typeof object[k] === 'object') {
+                if (object[k][VISITED_KEY] == VISITED_VAL) {
+                    console.log('\tvisited.');
+                    return;
+                };
+                object[k][VISITED_KEY] = VISITED_VAL;
+                findValInner(object[k], val, name);
+            }
+        });
+    }
+    findValInner(o, typename, prefix);
+    return results;
+}
+// end utils.
+
+// wslisten(({ data, event, socket }) => {});
 
 class AryumWS {
+    static credentials = '';
     constructor(url, joinRequestId, onCloseCallback) {
         this.url = url;
         this.joinRequestId = joinRequestId;
@@ -83,7 +158,7 @@ class AryumWS {
     }
 
     sendAuth() {
-        this.send('auth', `{"cred":"${CUR_AUTH}"}`);
+        this.send('auth', `{"cred":"${AryumWS.credentials}"}`);
     }
 
     sendRaw(message) {
@@ -199,7 +274,7 @@ class Npc {
             "headers": {
                 "accept": "*/*",
                 "accept-language": "en-US,en;q=0.9",
-                "authorization": `Bearer ${CUR_AUTH}`,
+                "authorization": `Bearer ${AryumWS.credentials}`,
                 "content-type": "application/json",
                 "sec-ch-ua": "\"Google Chrome\";v=\"105\", \"Not)A;Brand\";v=\"8\", \"Chromium\";v=\"105\"",
                 "sec-ch-ua-mobile": "?0",
@@ -268,49 +343,35 @@ function specificWorks() {
     npcs.push(new Npc("Shit", -24.185439, -20.12608013, 0.6887632, 0.7249863, 0.35)); // devil
 }
 
+function getAuthKey() {
+    return new Promise((resolve, reject) => {
+        var open = indexedDB.open("firebaseLocalStorageDb");
+        open.onerror = function (event) {
+            console.log("Error loading database");
+            return reject();
+        }
+        open.onsuccess = function (event) {
+            var db = open.result;
+            var transaction = db.transaction("firebaseLocalStorage", "readonly");
+            var objectStore = transaction.objectStore("firebaseLocalStorage");
+            const getAll = objectStore.getAll();
+            getAll.onerror = () => {
+                return reject();
+            }
+            getAll.onsuccess = (r) => {
+                AryumWS.credentials = r.target.result[0].value.stsTokenManager.accessToken;
+                return resolve(AryumWS.credentials);
+            };
+        }
+    });
+}
+
 function realMain() {
-    tama();
-    specificWorks();
+    getAuthKey().then(() => {
+        tama();
+        specificWorks();
+    }
+    );
 }
 
 realMain();
-
-
-function findVal(o, targetVal, prefix) {
-    const VISITED_KEY = 'findval_visited';
-    const VISITED_VAL = Math.random() * 100000000000000;
-    const CANDIDATE_PLACEHOLDER = 'fdnsakl nj3k2 njkfds sa90 jciosa mkl32';
-    console.log(VISITED_KEY);
-    console.log(VISITED_VAL);
-
-    let results = [];
-
-    const findValInner = (object, val, prefix) => {
-        Object.keys(object).forEach((k) => {
-            const name = prefix ? `${prefix}.${k}` : k;
-            console.log(name);
-            let candidate = CANDIDATE_PLACEHOLDER;
-            try {
-                candidate = object[k];
-            } catch (e) {
-                console.log(e);
-            }
-            if (candidate === CANDIDATE_PLACEHOLDER) return;
-            if (candidate === val || (typeof candidate === 'string' && candidate.includes(val))) {
-                results = [...results, { path: name, value: candidate }];
-                console.log('Found!');
-                return;
-            }
-            else if (candidate && typeof candidate === 'object') {
-                if (candidate[VISITED_KEY] == VISITED_VAL) {
-                    console.log('\tvisited.');
-                    return;
-                };
-                candidate[VISITED_KEY] = VISITED_VAL;
-                findValInner(candidate, val, name);
-            }
-        });
-    }
-    findValInner(o, targetVal, prefix);
-    return results;
-}
