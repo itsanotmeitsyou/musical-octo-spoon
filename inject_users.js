@@ -3,7 +3,7 @@ function logger(name) {
 }
 
 // This updates every ~30 minutes? need to get it live.
-CUR_AUTH = 'eyJhbGciOiJSUzI1NiIsImtpZCI6IjU4NWI5MGI1OWM2YjM2ZDNjOTBkZjBlOTEwNDQ1M2U2MmY4ODdmNzciLCJ0eXAiOiJKV1QifQ.eyJwcm92aWRlcl9pZCI6ImFub255bW91cyIsImlzcyI6Imh0dHBzOi8vc2VjdXJldG9rZW4uZ29vZ2xlLmNvbS92b2x0YS1ldmVudHMtMjk0NzE1IiwiYXVkIjoidm9sdGEtZXZlbnRzLTI5NDcxNSIsImF1dGhfdGltZSI6MTY2NDU2MjUwOSwidXNlcl9pZCI6IkhIWlZ4NDFDdWRlMk56MjAyZ3F1SEJiUldQSjMiLCJzdWIiOiJISFpWeDQxQ3VkZTJOejIwMmdxdUhCYlJXUEozIiwiaWF0IjoxNjY0NjE5NzY5LCJleHAiOjE2NjQ2MjMzNjksImZpcmViYXNlIjp7ImlkZW50aXRpZXMiOnt9LCJzaWduX2luX3Byb3ZpZGVyIjoiYW5vbnltb3VzIn19.l62ptHLxI0QULy9fxOmkdNxc28LulCM_ChqFOTN2kNdiXCQrPkoW8nWFjXAvujt32TVeEq47JgQFoxXLGvMOPh8oeYLHt28gFXKOvS5jv0tYjCWjiRSt-iRpv9S2VdFR2iMxfeXQCMaXsGg_hgNmsgtJ6cUzAse9e0hsyviRm0ycSg60ww6rIgf-6hUIrBRuzZ1aK9-LryMOFfuGWPZDDrziEkH4qVwgkYj-0FZbHgN7suwsNkDwzuiSdHoVFEvpLQHmKbaA0xehyFRich1JyNAt3o1ZuQoHyzNTv1-s5HsgbZGQzjZd38Loii2tmlfq4cbYZoM5s9FU1P8T3fyB8Q';
+CUR_AUTH = 'eyJhbGciOiJSUzI1NiIsImtpZCI6IjU4NWI5MGI1OWM2YjM2ZDNjOTBkZjBlOTEwNDQ1M2U2MmY4ODdmNzciLCJ0eXAiOiJKV1QifQ.eyJwcm92aWRlcl9pZCI6ImFub255bW91cyIsImlzcyI6Imh0dHBzOi8vc2VjdXJldG9rZW4uZ29vZ2xlLmNvbS92b2x0YS1ldmVudHMtMjk0NzE1IiwiYXVkIjoidm9sdGEtZXZlbnRzLTI5NDcxNSIsImF1dGhfdGltZSI6MTY2NDU2MjUwOSwidXNlcl9pZCI6IkhIWlZ4NDFDdWRlMk56MjAyZ3F1SEJiUldQSjMiLCJzdWIiOiJISFpWeDQxQ3VkZTJOejIwMmdxdUhCYlJXUEozIiwiaWF0IjoxNjY0NjM2NDA2LCJleHAiOjE2NjQ2NDAwMDYsImZpcmViYXNlIjp7ImlkZW50aXRpZXMiOnt9LCJzaWduX2luX3Byb3ZpZGVyIjoiYW5vbnltb3VzIn19.XNeYI7uPLDNfjr0V9qydXius_iw5QSwMQoMkql-BVG6Oht7_FkVyDuNXqjNKSqSfcio21CkDEhNmrqhshwz0vOlKuwAhlA2qABh4FWTCJzJaie6PUEORq7m6Mqu2z4RAWCLM_xb8Q3hyEBR4Rxh1kfJZk89MT7G-clMTGR1tScrUMEjl4vEfOvtSuDvwGtjVfuZ9QNi-aIyos5LODg8K9J7iFAPtJ4txPl1PuBTKgqsWdqO2xJWFrARtp6SbDrzXm-jWxZaMlVMHP8sBuxqOgXifAbeQrTS093wLKuLhDu4gyzZKhLtGBYhWdVTZ4edxxRnS1GxILKeELSjfCpVA-A';
 // This updates 1 every 24 hours and can be retrieved live from WS.
 CUR_USERID = 'HHZVx41Cude2Nz202gquHBbRWPJ3';
 // This was created after uploading a file, contains CUR_USERID, probably will require uploading daily.
@@ -24,27 +24,32 @@ function clearnNpc(npc) {
     if (npc.communication != null) npc.communication.ws.close();
 }
 
-function wslisten(fn) {
-    fn = fn || console.log
-    let property = Object.getOwnPropertyDescriptor
-        (MessageEvent.prototype, "data")
-    const data = property.get
-    function lookAtMessage() { //to replace get function
-        let socket = this.currentTarget instanceof WebSocket
-        if (!socket) { return data.call(this) }
-        let msg = data.call(this)
-        Object.defineProperty(this, "data", { value: msg }) //anti-loop
-        fn({ data: msg, socket: this.currentTarget, event: this })
-        return msg
-    }
-    property.get = lookAtMessage
-    Object.defineProperty
-        (MessageEvent.prototype, "data", property)
-}
+// function wslisten(fn) {
+//     fn = fn || console.log
+//     let property = Object.getOwnPropertyDescriptor
+//         (MessageEvent.prototype, 'data')
+//     const data = property.get
+//     function lookAtMessage() { //to replace get function
+//         let socket = this.currentTarget instanceof WebSocket
+//         if (!socket) { return data.call(this) }
+//         let msg = data.call(this)
+//         Object.defineProperty(this, 'data', { value: msg }) //anti-loop
+//         fn({ data: msg, socket: this.currentTarget, event: this })
+//         return msg
+//     }
+//     property.get = lookAtMessage
+//     Object.defineProperty
+//         (MessageEvent.prototype, 'data', property)
+// }
 
-wslisten(({ data }) => {
-    pdata = JSON.parse(data);
-});
+// wslisten(({ data , event}) => {
+//     console.log(JSON.parse(event.data)?.d?.a);
+//     // pdata = JSON.parse(data);
+//     // console.log(pdata?.d?.a);
+//     // if (pdata?.d?.a == 'auth') {
+//     //     console.log('got one');
+//     // }
+// });
 
 class AryumWS {
     constructor(url, joinRequestId, onCloseCallback) {
@@ -142,14 +147,14 @@ class AryumCommunication extends AryumWS {
 
 class AriumPeers extends AryumWS {
     constructor(joinRequestId, x, y, r1, r3, z, onCloseCallback) {
-        super('wss://s-usc1a-nss-2048.firebaseio.com/.ws?v=5&ns=arium-peers', joinRequestId, onCloseCallback);        
-        this.send('q','{"p":"/userPositions/sl6wrg","h":""}');
-        this.send('q','{"p":"/broadcasters","q":{"sp":"sl6wrg","ep":"sl6wrg","i":"spaceId"},"t":4,"h":""}');
-        this.send('q','{"p":"/userRotations/sl6wrg","h":""}');
+        super('wss://s-usc1a-nss-2048.firebaseio.com/.ws?v=5&ns=arium-peers', joinRequestId, onCloseCallback);
+        this.send('q', '{"p":"/userPositions/sl6wrg","h":""}');
+        this.send('q', '{"p":"/broadcasters","q":{"sp":"sl6wrg","ep":"sl6wrg","i":"spaceId"},"t":4,"h":""}');
+        this.send('q', '{"p":"/userRotations/sl6wrg","h":""}');
         this.send('p', `{"p":"/userDeviceOrientations/${joinRequestId}","d":{"orientation":0,"userId":"${CUR_USERID}"}}`);
         this.send('p', `{"p":"/userPositions/sl6wrg/${joinRequestId}","d":{"position":{"0":${x},"1":${z},"2":${y}},"userId":"${CUR_USERID}"}}`);
         this.send('p', `{"p":"/userRotations/sl6wrg/${joinRequestId}","d":{"quaternion":{"0":0,"1":${r1},"2":0,"3":${r3}},"userId":"${CUR_USERID}"}}`);
-        
+
         this.intervalIds.push(setInterval(() => {
             this.sendRaw(0);
         }, 45 * 1000));
@@ -269,3 +274,43 @@ function realMain() {
 }
 
 realMain();
+
+
+function findVal(o, targetVal, prefix) {
+    const VISITED_KEY = 'findval_visited';
+    const VISITED_VAL = Math.random() * 100000000000000;
+    const CANDIDATE_PLACEHOLDER = 'fdnsakl nj3k2 njkfds sa90 jciosa mkl32';
+    console.log(VISITED_KEY);
+    console.log(VISITED_VAL);
+
+    let results = [];
+
+    const findValInner = (object, val, prefix) => {
+        Object.keys(object).forEach((k) => {
+            const name = prefix ? `${prefix}.${k}` : k;
+            console.log(name);
+            let candidate = CANDIDATE_PLACEHOLDER;
+            try {
+                candidate = object[k];
+            } catch (e) {
+                console.log(e);
+            }
+            if (candidate === CANDIDATE_PLACEHOLDER) return;
+            if (candidate === val || (typeof candidate === 'string' && candidate.includes(val))) {
+                results = [...results, { path: name, value: candidate }];
+                console.log('Found!');
+                return;
+            }
+            else if (candidate && typeof candidate === 'object') {
+                if (candidate[VISITED_KEY] == VISITED_VAL) {
+                    console.log('\tvisited.');
+                    return;
+                };
+                candidate[VISITED_KEY] = VISITED_VAL;
+                findValInner(candidate, val, name);
+            }
+        });
+    }
+    findValInner(o, targetVal, prefix);
+    return results;
+}
