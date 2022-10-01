@@ -4,7 +4,7 @@ function logger(name) {
 
 // This updates 1 every 24 hours and can be retrieved live from WS.
 CUR_USERID = 'HHZVx41Cude2Nz202gquHBbRWPJ3';
-// This was created after uploading a file, contains CUR_USERID, probably will require uploading daily.
+// This was created after uploading a file, contains CUR_USERID from upload time, might require uploading daily.
 PHOTO_LOCATION = 'https://assets.vlts.pw/profileImages/zoxvx93Fzbd2rdKZHdgqf7Nn1tq2/8Jy.png';
 
 // Default values:
@@ -17,9 +17,9 @@ INITIAL_R3 = 0.6830856444359062;
 OFFSET_STEP = -1.5;
 
 // Remove an NPC from the space.
-function clearnNpc(npc) {
-    if (npc.peers != null) npc.peers.ws.close();
-    if (npc.communication != null) npc.communication.ws.close();
+function clearNpc(npc, force = true) {
+    if (npc.peers != null) npc.peers.close(force);
+    if (npc.communication != null) npc.communication.close(force);
 }
 
 // function wslisten(fn) {
@@ -125,24 +125,63 @@ function findType(o, typename, prefix) {
 
 // wslisten(({ data, event, socket }) => {});
 
+function getAuthKey() {
+    return new Promise((resolve, reject) => {
+        var open = indexedDB.open("firebaseLocalStorageDb");
+        open.onerror = function (event) {
+            console.log("Error loading database");
+            return reject();
+        }
+        open.onsuccess = function (event) {
+            var db = open.result;
+            var transaction = db.transaction("firebaseLocalStorage", "readonly");
+            var objectStore = transaction.objectStore("firebaseLocalStorage");
+            const getAll = objectStore.getAll();
+            getAll.onerror = () => {
+                return reject();
+            }
+            getAll.onsuccess = (r) => {
+                AryumWS.credentials = r.target.result[0].value.stsTokenManager.accessToken;
+                return resolve(AryumWS.credentials);
+            };
+        }
+    });
+}
+
 class AryumWS {
     static credentials = '';
     constructor(url, joinRequestId, onCloseCallback) {
+        this.log = logger(joinRequestId);
+
         this.url = url;
         this.joinRequestId = joinRequestId;
         this.valid = true;
 
+        this.useOnClose = true;
+
         this.r = 1;
         this.ws = new WebSocket(url);
-        this.ws.onclose = () => {
-            console.log(`closing: ${this.joinRequestId}`);
+        this.ws.onclose = (event) => {
+            this.log('onclose event');
             this.q.length = 0;
             this.intervalIds.forEach((i) => {
                 clearInterval(i);
             });
-            onCloseCallback();
+            this.intervalIds.length = 0;
             this.valid = false;
+            if (this.useOnClose) onCloseCallback();
+
         };
+
+        this.ws.onmessage = (event) => {
+            if (JSON.parse(event?.data)?.d?.b?.s === "expired_token") {
+                this.log('Expired token, restarting.')
+                getAuthKey().then(() => {
+                    this.log('Updated AuthKey, closing.');
+                    this.close();
+                });
+            }
+        }
 
         this.q = [];
         this.intervalIds = [];
@@ -151,6 +190,13 @@ class AryumWS {
         this.sendAuth()
 
         this.intervalIds.push(setInterval(() => this.flush(), 1000));
+    }
+
+    close(force = false) {
+        if (force) {
+            this.useOnClose = false;
+        }
+        this.ws.close();
     }
 
     sendSdk() {
@@ -172,7 +218,7 @@ class AryumWS {
 
     send_(message) {
         if (!this.valid) {
-            console.log(`${this.joinRequestId}: send after close.`);
+            this.log('sending message after close.');
         }
         this.q.push(message)
         this.flush();
@@ -246,6 +292,8 @@ class AriumPeers extends AryumWS {
 
 class Npc {
     constructor(displayName = 'NFThieves', x, y, r1 = INITIAL_R1, r3 = INITIAL_R3, z = 0, photo = PHOTO_LOCATION) {
+        this.log = logger(`${displayName}`);
+        
         this.displayName = displayName;
         this.x = x;
         this.y = y;
@@ -289,7 +337,8 @@ class Npc {
             "method": "POST"
         }).then(response => response.json().then(value => {
             this.joinRequestId = value.result.joinRequestId;
-            console.log('constructed NPC');
+            this.log = logger(`${this.displayName}:${this.joinRequestId}`);
+            this.log('constructed NPC');
             this.communication = new AryumCommunication(this.joinRequestId, this.displayName, () => this.init());
             this.peers = new AriumPeers(this.joinRequestId, this.x, this.y, this.r1, this.r3, this.z, () => this.init());
             setTimeout(() => void this.setPhoto(this.photo), 7 * 1000);
@@ -343,35 +392,11 @@ function specificWorks() {
     npcs.push(new Npc("Shit", -24.185439, -20.12608013, 0.6887632, 0.7249863, 0.35)); // devil
 }
 
-function getAuthKey() {
-    return new Promise((resolve, reject) => {
-        var open = indexedDB.open("firebaseLocalStorageDb");
-        open.onerror = function (event) {
-            console.log("Error loading database");
-            return reject();
-        }
-        open.onsuccess = function (event) {
-            var db = open.result;
-            var transaction = db.transaction("firebaseLocalStorage", "readonly");
-            var objectStore = transaction.objectStore("firebaseLocalStorage");
-            const getAll = objectStore.getAll();
-            getAll.onerror = () => {
-                return reject();
-            }
-            getAll.onsuccess = (r) => {
-                AryumWS.credentials = r.target.result[0].value.stsTokenManager.accessToken;
-                return resolve(AryumWS.credentials);
-            };
-        }
-    });
-}
-
 function realMain() {
     getAuthKey().then(() => {
         tama();
         specificWorks();
-    }
-    );
+    });
 }
 
 realMain();
