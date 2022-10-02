@@ -244,7 +244,6 @@ class Npc {
 
     respawn(forId) {
         const lock = navigator.locks.request(`respaws_${forId}`, { ifAvailable: true }, () => {
-            console.log(`rid:${this.respawnedId}. forId:${forId}`);
             if (this.respawnedId === forId || forId === '') return;
             this.respawnedId = forId;
             this.init();
