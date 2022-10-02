@@ -17,30 +17,12 @@ INITIAL_R3 = 0.6830856444359062;
 OFFSET_STEP = -1.5;
 
 // Remove an NPC from the space.
-function clearNpc(npc, force = true) {
-    if (npc.peers != null) npc.peers.close(force);
-    if (npc.communication != null) npc.communication.close(force);
+function clearNpc(npc, noRespawn = true) {
+    if (npc.peers != null) npc.peers.close(noRespawn);
+    if (npc.communication != null) npc.communication.close(noRespawn);
 }
 
-// function wslisten(fn) {
-//     fn = fn || console.log
-//     let property = Object.getOwnPropertyDescriptor
-//         (MessageEvent.prototype, 'data')
-//     const data = property.get
-//     function lookAtMessage() { //to replace get function
-//         let socket = this.currentTarget instanceof WebSocket
-//         if (!socket) { return data.call(this) }
-//         let msg = data.call(this)
-//         Object.defineProperty(this, 'data', { value: msg }) //anti-loop
-//         fn({ data: msg, socket: this.currentTarget, event: this })
-//         return msg
-//     }
-//     property.get = lookAtMessage
-//     Object.defineProperty
-//         (MessageEvent.prototype, 'data', property)
-// }
-
-// utils
+// console utils
 
 function findVal(o, targetVal, prefix) {
     const VISITED_KEY = 'findval_visited';
@@ -121,9 +103,7 @@ function findType(o, typename, prefix) {
     findValInner(o, typename, prefix);
     return results;
 }
-// end utils.
-
-// wslisten(({ data, event, socket }) => {});
+// end console utils.
 
 function getAuthKey() {
     return new Promise((resolve, reject) => {
@@ -157,7 +137,7 @@ class AryumWS {
         this.joinRequestId = joinRequestId;
         this.valid = true;
 
-        this.useOnClose = true;
+        this.useCallback = true;
 
         this.r = 1;
         this.ws = new WebSocket(url);
@@ -169,8 +149,7 @@ class AryumWS {
             });
             this.intervalIds.length = 0;
             this.valid = false;
-            if (this.useOnClose) onCloseCallback();
-
+            if (this.useCallback) onCloseCallback();
         };
 
         this.ws.onmessage = (event) => {
@@ -192,10 +171,8 @@ class AryumWS {
         this.intervalIds.push(setInterval(() => this.flush(), 1000));
     }
 
-    close(force = false) {
-        if (force) {
-            this.useOnClose = false;
-        }
+    close(useCallback = true) {
+        this.useCallback = useCallback;
         this.ws.close();
     }
 
@@ -293,7 +270,8 @@ class AriumPeers extends AryumWS {
 class Npc {
     constructor(displayName = 'NFThieves', x, y, r1 = INITIAL_R1, r3 = INITIAL_R3, z = 0, photo = PHOTO_LOCATION) {
         this.log = logger(`${displayName}`);
-        
+        this.respawnedId = '';
+
         this.displayName = displayName;
         this.x = x;
         this.y = y;
@@ -339,11 +317,26 @@ class Npc {
             this.joinRequestId = value.result.joinRequestId;
             this.log = logger(`${this.displayName}:${this.joinRequestId}`);
             this.log('constructed NPC');
-            this.communication = new AryumCommunication(this.joinRequestId, this.displayName, () => this.init());
-            this.peers = new AriumPeers(this.joinRequestId, this.x, this.y, this.r1, this.r3, this.z, () => this.init());
+            const joinRequestId = this.joinRequestId;
+            this.communication = new AryumCommunication(this.joinRequestId, this.displayName, () => this.respawn(joinRequestId));
+            this.peers = new AriumPeers(this.joinRequestId, this.x, this.y, this.r1, this.r3, this.z, () => this.respawn(joinRequestId));
             setTimeout(() => void this.setPhoto(this.photo), 7 * 1000);
             console.log(this);
         }));
+    }
+
+    close(respawn = false) {
+        this.peers.close(respawn);
+        this.communication.close(respawn);
+    }
+
+    respawn(forId) {
+        const lock = navigator.locks.request(`respaws_${forId}`, { ifAvailable: true }, () => {
+            console.log(`rid:${this.respawnedId}. forId:${forId}`);
+            if (this.respawnedId === forId || forId === '') return;
+            this.respawnedId = forId;
+            this.init();
+        });
     }
 }
 
@@ -388,13 +381,13 @@ function tama() {
 function specificWorks() {
     const npcs = [];
     npcs.push(new Npc("Nope", -24.3725, -0.2067, 0.74114, 0.67133, 0.35)); // monalize
-    npcs.push(new Npc("Scam", -24.3158289, -2.64733181028, 0.71720398, 0.69686328, 0.35)); // cyberpunk
-    npcs.push(new Npc("Shit", -24.185439, -20.12608013, 0.6887632, 0.7249863, 0.35)); // devil
+    // npcs.push(new Npc("Scam", -24.3158289, -2.64733181028, 0.71720398, 0.69686328, 0.35)); // cyberpunk
+    // npcs.push(new Npc("Shit", -24.185439, -20.12608013, 0.6887632, 0.7249863, 0.35)); // devil
 }
 
 function realMain() {
     getAuthKey().then(() => {
-        tama();
+        // tama();
         specificWorks();
     });
 }
