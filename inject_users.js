@@ -16,95 +16,6 @@ INITIAL_R3 = 0.6830856444359062;
 // This is just for grid script.
 OFFSET_STEP = -1.5;
 
-// Remove an NPC from the space.
-function clearNpc(npc, noRespawn = true) {
-    if (npc.peers != null) npc.peers.close(noRespawn);
-    if (npc.communication != null) npc.communication.close(noRespawn);
-}
-
-// console utils
-
-function findVal(o, targetVal, prefix) {
-    const VISITED_KEY = 'findval_visited';
-    const VISITED_VAL = Math.random() * 100000000000000;
-    const CANDIDATE_PLACEHOLDER = 'fdnsakl nj3k2 njkfds sa90 jciosa mkl32';
-    console.log(VISITED_KEY);
-    console.log(VISITED_VAL);
-
-    let results = [];
-
-    const findValInner = (object, val, prefix) => {
-        Object.keys(object).forEach((k) => {
-            const name = prefix ? `${prefix}.${k}` : k;
-            console.log(name);
-            let candidate = CANDIDATE_PLACEHOLDER;
-            try {
-                candidate = object[k];
-            } catch (e) {
-                console.log(e);
-            }
-            if (candidate === CANDIDATE_PLACEHOLDER) return;
-            if (candidate === val || (typeof candidate === 'string' && candidate.includes(val))) {
-                results = [...results, { path: name, value: candidate }];
-                console.log('Found!');
-                return;
-            }
-            else if (candidate && typeof candidate === 'object') {
-                if (candidate[VISITED_KEY] == VISITED_VAL) {
-                    console.log('\tvisited.');
-                    return;
-                };
-                candidate[VISITED_KEY] = VISITED_VAL;
-                findValInner(candidate, val, name);
-            }
-        });
-    }
-    findValInner(o, targetVal, prefix);
-    return results;
-}
-
-function findType(o, typename, prefix) {
-    const VISITED_KEY = 'findval_visited';
-    const VISITED_VAL = Math.random() * 100000000000000;
-    const CANDIDATE_PLACEHOLDER = 'fdnsakl nj3k2 njkfds sa90 jciosa mkl32';
-    console.log(VISITED_KEY);
-    console.log(VISITED_VAL);
-
-    let results = [];
-
-    const findValInner = (object, val, prefix) => {
-        Object.keys(object).forEach((k) => {
-            const name = prefix ? `${prefix}.${k}` : k;
-            console.log(name);
-            let candidate = CANDIDATE_PLACEHOLDER;
-            try {
-                candidate = Object.prototype.toString.call(object[k]);
-                console.log(candidate);
-            } catch (e) {
-                console.log(e);
-            }
-            if (candidate === CANDIDATE_PLACEHOLDER) return;
-            if (candidate === val ||
-                (typeof candidate === 'string' && candidate.toLowerCase().includes(`${val}`.toLowerCase()))) {
-                results = [...results, { path: name, value: object[k] }];
-                console.log('Found!');
-                return;
-            }
-            else if (object[k] && typeof object[k] === 'object') {
-                if (object[k][VISITED_KEY] == VISITED_VAL) {
-                    console.log('\tvisited.');
-                    return;
-                };
-                object[k][VISITED_KEY] = VISITED_VAL;
-                findValInner(object[k], val, name);
-            }
-        });
-    }
-    findValInner(o, typename, prefix);
-    return results;
-}
-// end console utils.
-
 function getAuthKey() {
     return new Promise((resolve, reject) => {
         var open = indexedDB.open("firebaseLocalStorageDb");
@@ -340,6 +251,8 @@ class Npc {
     }
 }
 
+// Scripts
+
 function grid() {
     const npcs = [];
     for (let x_offset = 0; x_offset < 1; x_offset++) {
@@ -376,6 +289,7 @@ function tama() {
     npcs.push(new Npc(six_words[3 % six_words.length], -8.494, -4.97, -0.0308, 0.9995));
     npcs.push(new Npc(six_words[4 % six_words.length], -6.652, -5.26, -0.0308, 0.9995));
     npcs.push(new Npc(six_words[5 % six_words.length], -4.81, -5.55, -0.0308, 0.9995));
+    return npcs;
 }
 
 function specificWorks() {
@@ -383,6 +297,7 @@ function specificWorks() {
     npcs.push(new Npc("Nope", -24.3725, -0.2067, 0.74114, 0.67133, 0.35)); // monalize
     npcs.push(new Npc("Scam", -24.3158289, -2.64733181028, 0.71720398, 0.69686328, 0.35)); // cyberpunk
     npcs.push(new Npc("Shit", -24.185439, -20.12608013, 0.6887632, 0.7249863, 0.35)); // devil
+    return npcs;
 }
 
 function realMain() {
