@@ -2,9 +2,10 @@ function logger(name) {
     return (message) => console.log(`${name}: ${message}.`);
 }
 
-// This updates 1 every 24 hours and can be retrieved live from WS.
+// This updates from time to time 24 hours and can be retrieved live from WS.
 CUR_USERID = 'HHZVx41Cude2Nz202gquHBbRWPJ3';
-// This was created after uploading a file, contains CUR_USERID from upload time, might require uploading daily.
+// This was created after uploading a file, contains a userid from upload time, might require uploading daily.
+// Edit: apparently not.
 PHOTO_LOCATION = 'https://assets.vlts.pw/profileImages/zoxvx93Fzbd2rdKZHdgqf7Nn1tq2/8Jy.png';
 
 // Default values:
