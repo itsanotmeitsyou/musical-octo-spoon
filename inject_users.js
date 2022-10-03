@@ -3,7 +3,7 @@ function logger(name) {
 }
 
 // This updates from time to time and can be retrieved live from WS (todo?).
-CUR_USERID = 'HHZVx41Cude2Nz202gquHBbRWPJ3';
+// CUR_USEsRID = 'HHZVx41Cude2Nz202gquHBbRWPJ3';
 // This was created after uploading a file, contains a userid from upload time, might require uploading daily.
 // Edit: apparently not.
 PHOTO_LOCATION = 'https://assets.vlts.pw/profileImages/zoxvx93Fzbd2rdKZHdgqf7Nn1tq2/8Jy.png';
@@ -33,15 +33,27 @@ function getAuthKey() {
                 return reject();
             }
             getAll.onsuccess = (r) => {
-                AryumWS.credentials = r.target.result[0].value.stsTokenManager.accessToken;
-                return resolve(AryumWS.credentials);
+                const cred = r.target.result[0].value.stsTokenManager.accessToken;
+                return resolve(cred);
             };
         }
     });
 }
 
+function retryChain(work, retries = 12, delay = 5 * 1000) {
+    function rejectDelay(reason) {
+        return new Promise(function (resolve, reject) {
+            setTimeout(reject.bind(null, reason), delay);
+        });
+    }
+    var p = Promise.reject();
+    for (var i = 0; i < retries; i++) {
+        p = p.catch(work).catch(rejectDelay);
+    }
+    return p;
+}
+
 class AryumWS {
-    static credentials = '';
     constructor(url, joinRequestId, onCloseCallback) {
         this.log = logger(joinRequestId);
 
@@ -65,20 +77,42 @@ class AryumWS {
         };
 
         this.ws.onmessage = (event) => {
-            if (JSON.parse(event?.data)?.d?.b?.s === "expired_token") {
-                this.log('Expired token, restarting.')
-                getAuthKey().then(() => {
-                    this.log('Updated AuthKey, closing.');
-                    this.close();
-                });
+            if (!event?.data) return;
+            const pdata = JSON.parse(event.data);
+            if (pdata?.d?.b?.s === "expired_token") {
+                this.log('Expired token, closing.')
+                this.close();
+            } else if (pdata?.d?.b?.d?.auth?.uid) {
+                this.uid = pdata?.d?.b?.d?.auth?.uid;
             }
         }
 
         this.q = [];
         this.intervalIds = [];
 
-        this.sendSdk();
-        this.sendAuth()
+        this.init = new Promise((resolve, reject) => {
+            let hasAuth = false;
+            let hasUid = false;
+            let max_tries = 10;
+            this.sendSdk();
+            this.sendAuth().then(() => { hasAuth = true; });
+            let intervalId;
+            intervalId = setInterval(() => {
+                if (this.uid !== undefined && hasAuth) {
+                    clearInterval(intervalId);
+                    return resolve();
+                }
+                max_tries--;
+                if (max_tries <= 0) {
+                    clearInterval(intervalId);
+                    return reject();
+                }
+            }, 1000)
+        }).catch(() => {
+            this.log('could not get credentials, closing.');
+            this.close();
+        });;
+
 
         this.intervalIds.push(setInterval(() => this.flush(), 1000));
     }
@@ -93,7 +127,7 @@ class AryumWS {
     }
 
     sendAuth() {
-        this.send('auth', `{"cred":"${AryumWS.credentials}"}`);
+        return getAuthKey().then((cred) => this.send('auth', `{"cred":"${cred}"}`));
     }
 
     sendRaw(message) {
@@ -126,24 +160,26 @@ class AryumWS {
 class AryumCommunication extends AryumWS {
     constructor(joinRequestId, displayName = '', onCloseCallback) {
         super('wss://s-usc1a-nss-2000.firebaseio.com/.ws?v=5&ns=arium-communication', joinRequestId, onCloseCallback);
-        this.send('q', '{"p":"/userSessions","q":{"sp":"sl6wrg","ep":"sl6wrg","i":"spaceId"},"t":1,"h":""}');
-        this.send('q', '{"p":"/userMetadata","q":{"sp":"sl6wrg","ep":"sl6wrg","i":"spaceId"},"t":2,"h":""}');
-        this.send('p', `{"p":"/userMetadata/${joinRequestId}","d":{"userId":"${CUR_USERID}"}}`);
-        this.send('n', `{"p":"/userSessions","q":{"sp":"sl6wrg","ep":"sl6wrg","i":"spaceId"},"t":1}`);
-        this.send('q', `{"p":"/userSessions","q":{"sp":"sl6wrg","ep":"sl6wrg","i":"spaceId"},"t":3,"h":""}`);
+        this.init.then(() => {
+            this.send('q', '{"p":"/userSessions","q":{"sp":"sl6wrg","ep":"sl6wrg","i":"spaceId"},"t":1,"h":""}');
+            this.send('q', '{"p":"/userMetadata","q":{"sp":"sl6wrg","ep":"sl6wrg","i":"spaceId"},"t":2,"h":""}');
+            this.send('p', `{"p":"/userMetadata/${joinRequestId}","d":{"userId":"${this.uid}"}}`);
+            this.send('n', `{"p":"/userSessions","q":{"sp":"sl6wrg","ep":"sl6wrg","i":"spaceId"},"t":1}`);
+            this.send('q', `{"p":"/userSessions","q":{"sp":"sl6wrg","ep":"sl6wrg","i":"spaceId"},"t":3,"h":""}`);
 
-        this.send('o', `{"p":"/userSessions/${joinRequestId}","d":{"active":false,"lastChanged":{".sv":"timestamp"},"spaceId":"sl6wrg","userId":"${CUR_USERID}"}}`);
-        this.send('m', `{"p":"/userSessions/${joinRequestId}","d":{"active":true,"userId":"${CUR_USERID}","lastChanged":{".sv":"timestamp"}}}`);
-        this.send('m', `{"p":"/userSessions/${joinRequestId}","d":{"spaceId":"sl6wrg","userId":"${CUR_USERID}","active":true,"lastChanged":{".sv":"timestamp"}}}`);
-        this.send('m', `{"p":"/userMetadata/${joinRequestId}","d":{"spaceId":"sl6wrg"}}`);
-        this.send('m', `{"p":"/userMetadata/${joinRequestId}","d":{"metadata":{}}}`);
-        this.send('q', `{"p":"/userCommunication/${CUR_USERID}/${joinRequestId}/webrtcTransport","h":""}`);
-        this.send('m', `{"p":"/userSessions/${joinRequestId}","d":{"active":true,"lastChanged":{".sv":"timestamp"}}}`);
-        this.send('m', `{"p":"/userMetadata/${joinRequestId}","d":{"metadata":{"displayName": "${displayName}"}}}`);
-        this.intervalIds.push(setInterval(() => {
+            this.send('o', `{"p":"/userSessions/${joinRequestId}","d":{"active":false,"lastChanged":{".sv":"timestamp"},"spaceId":"sl6wrg","userId":"${this.uid}"}}`);
+            this.send('m', `{"p":"/userSessions/${joinRequestId}","d":{"active":true,"userId":"${this.uid}","lastChanged":{".sv":"timestamp"}}}`);
+            this.send('m', `{"p":"/userSessions/${joinRequestId}","d":{"spaceId":"sl6wrg","userId":"${this.uid}","active":true,"lastChanged":{".sv":"timestamp"}}}`);
+            this.send('m', `{"p":"/userMetadata/${joinRequestId}","d":{"spaceId":"sl6wrg"}}`);
+            this.send('m', `{"p":"/userMetadata/${joinRequestId}","d":{"metadata":{}}}`);
+            this.send('q', `{"p":"/userCommunication/${this.uid}/${joinRequestId}/webrtcTransport","h":""}`);
             this.send('m', `{"p":"/userSessions/${joinRequestId}","d":{"active":true,"lastChanged":{".sv":"timestamp"}}}`);
-            this.r++;
-        }, 30000));
+            this.send('m', `{"p":"/userMetadata/${joinRequestId}","d":{"metadata":{"displayName": "${displayName}"}}}`);
+            this.intervalIds.push(setInterval(() => {
+                this.send('m', `{"p":"/userSessions/${joinRequestId}","d":{"active":true,"lastChanged":{".sv":"timestamp"}}}`);
+                this.r++;
+            }, 30000));
+        });
     }
 
     updateDisplayName(displayName) {
@@ -158,29 +194,32 @@ class AryumCommunication extends AryumWS {
 class AriumPeers extends AryumWS {
     constructor(joinRequestId, x, y, r1, r3, z, onCloseCallback) {
         super('wss://s-usc1a-nss-2048.firebaseio.com/.ws?v=5&ns=arium-peers', joinRequestId, onCloseCallback);
-        this.send('q', '{"p":"/userPositions/sl6wrg","h":""}');
-        this.send('q', '{"p":"/broadcasters","q":{"sp":"sl6wrg","ep":"sl6wrg","i":"spaceId"},"t":4,"h":""}');
-        this.send('q', '{"p":"/userRotations/sl6wrg","h":""}');
-        this.send('p', `{"p":"/userDeviceOrientations/${joinRequestId}","d":{"orientation":0,"userId":"${CUR_USERID}"}}`);
-        this.send('p', `{"p":"/userPositions/sl6wrg/${joinRequestId}","d":{"position":{"0":${x},"1":${z},"2":${y}},"userId":"${CUR_USERID}"}}`);
-        this.send('p', `{"p":"/userRotations/sl6wrg/${joinRequestId}","d":{"quaternion":{"0":0,"1":${r1},"2":0,"3":${r3}},"userId":"${CUR_USERID}"}}`);
-
-        this.intervalIds.push(setInterval(() => {
-            this.sendRaw(0);
-        }, 45 * 1000));
+        this.init.then(() => {
+            this.send('q', '{"p":"/userPositions/sl6wrg","h":""}');
+            this.send('q', '{"p":"/broadcasters","q":{"sp":"sl6wrg","ep":"sl6wrg","i":"spaceId"},"t":4,"h":""}');
+            this.send('q', '{"p":"/userRotations/sl6wrg","h":""}');
+            this.send('p', `{"p":"/userDeviceOrientations/${joinRequestId}","d":{"orientation":0,"userId":"${this.uid}"}}`);
+            this.send('p', `{"p":"/userPositions/sl6wrg/${joinRequestId}","d":{"position":{"0":${x},"1":${z},"2":${y}},"userId":"${this.uid}"}}`);
+            this.send('p', `{"p":"/userRotations/sl6wrg/${joinRequestId}","d":{"quaternion":{"0":0,"1":${r1},"2":0,"3":${r3}},"userId":"${this.uid}"}}`);
+            this.intervalIds.push(setInterval(() => {
+                this.sendRaw(0);
+            }, 45 * 1000));
+        });
     }
 
     updatePosition(x, y, z = 0) {
-        this.send("p", `{"p":"/userPositions/sl6wrg/${this.joinRequestId}","d":{"position":{"0":${x},"1":${z},"2":${y}},"userId":"${CUR_USERID}"}}`);
+        this.send("p", `{"p":"/userPositions/sl6wrg/${this.joinRequestId}","d":{"position":{"0":${x},"1":${z},"2":${y}},"userId":"${this.uid}"}}`);
     }
 
     updateRotation(r1, r3) {
-        this.send("p", `{"p":"/userRotations/sl6wrg/${this.joinRequestId}","d":{"quaternion":{"0":0,"1":${r1},"2":0,"3":${r3}},"userId":"${CUR_USERID}"}}`)
+        this.send("p", `{"p":"/userRotations/sl6wrg/${this.joinRequestId}","d":{"quaternion":{"0":0,"1":${r1},"2":0,"3":${r3}},"userId":"${this.uid}"}}`)
     }
 }
 
 class Npc {
+    static instances = [];
     constructor(displayName = 'NFThieves', x, y, r1 = INITIAL_R1, r3 = INITIAL_R3, z = 0, photo = PHOTO_LOCATION) {
+        Npc.instances.push(this);
         this.log = logger(`${displayName}`);
         this.respawnedId = '';
 
@@ -205,41 +244,58 @@ class Npc {
     }
 
     init() {
+        this.log = logger(`${this.displayName}`);
         this.joinRequestId = '';
         this.communication = null;
         this.peers = null;
-        fetch("https://us-central1-volta-events-294715.cloudfunctions.net/joinSpace", {
-            "headers": {
-                "accept": "*/*",
-                "accept-language": "en-US,en;q=0.9",
-                "authorization": `Bearer ${AryumWS.credentials}`,
-                "content-type": "application/json",
-                "sec-ch-ua": "\"Google Chrome\";v=\"105\", \"Not)A;Brand\";v=\"8\", \"Chromium\";v=\"105\"",
-                "sec-ch-ua-mobile": "?0",
-                "sec-ch-ua-platform": "\"Chrome OS\"",
-                "sec-fetch-dest": "empty",
-                "sec-fetch-mode": "cors",
-                "sec-fetch-site": "cross-site",
-                "Referer": "https://arium.xyz/",
-                "Referrer-Policy": "strict-origin-when-cross-origin"
-            },
-            "body": "{\"data\":{\"spaceId\":\"sl6wrg\"}}",
-            "method": "POST"
-        }).then(response => response.json().then(value => {
+        retryChain(() => this.fetchJoinRequestId())
+        .catch((e) => {
+            this.log('Failed joinRequest');
+            console.error(e);
+        }).then(value => {
             this.joinRequestId = value.result.joinRequestId;
-            this.log = logger(`${this.displayName}:${this.joinRequestId}`);
+            this.log = logger(`${this.displayName}: ${this.joinRequestId}`);
             this.log('constructed NPC');
             const joinRequestId = this.joinRequestId;
             this.communication = new AryumCommunication(this.joinRequestId, this.displayName, () => this.respawn(joinRequestId));
             this.peers = new AriumPeers(this.joinRequestId, this.x, this.y, this.r1, this.r3, this.z, () => this.respawn(joinRequestId));
             setTimeout(() => void this.setPhoto(this.photo), 7 * 1000);
             console.log(this);
-        }));
+        }).catch((e) => {
+            this.log('Failed constructing Npc.');
+            console.error(e);
+        });
+    }
+
+    fetchJoinRequestId() {
+        return getAuthKey().then((cred) => {
+            return fetch("https://us-central1-volta-events-294715.cloudfunctions.net/joinSpace", {
+                "headers": {
+                    "accept": "*/*",
+                    "accept-language": "en-US,en;q=0.9",
+                    "authorization": `Bearer ${cred}`,
+                    "content-type": "application/json",
+                    "sec-ch-ua": "\"Google Chrome\";v=\"105\", \"Not)A;Brand\";v=\"8\", \"Chromium\";v=\"105\"",
+                    "sec-ch-ua-mobile": "?0",
+                    "sec-ch-ua-platform": "\"Chrome OS\"",
+                    "sec-fetch-dest": "empty",
+                    "sec-fetch-mode": "cors",
+                    "sec-fetch-site": "cross-site",
+                    "Referer": "https://arium.xyz/",
+                    "Referrer-Policy": "strict-origin-when-cross-origin"
+                },
+                "body": "{\"data\":{\"spaceId\":\"sl6wrg\"}}",
+                "method": "POST"
+            }).then(response => response.json());
+        });
     }
 
     close(respawn = false) {
-        this.peers.close(respawn);
-        this.communication.close(respawn);
+        if (this.peers != null) this.peers.close(respawn);
+        if (this.communication != null) this.communication.close(respawn);
+        if (this.peers == null && this.communication == null && respawn) {
+            this.respawn();
+        }
     }
 
     respawn(forId) {
@@ -281,7 +337,7 @@ function setPhotoWithDelay(npcs, delay) {
 }
 
 function tama() {
-    six_words = "THIS IS|NOT AN|EXHIBITION,|IT'S A|CRYPTO|COMMERCIAL".split('|');
+    six_words = "THIS IS|NOT AN|EXHIBITION,|IT'S A|CRYPTO | COMMERCIAL".split('|');
     const npcs = [];
     npcs.push(new Npc(six_words[0 % six_words.length], -14.02, -4.10, -0.0308, 0.9995));
     npcs.push(new Npc(six_words[1 % six_words.length], -12.178, -4.39, -0.0308, 0.9995));
