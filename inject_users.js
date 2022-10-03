@@ -180,7 +180,7 @@ class AryumCommunication extends AryumWS {
             this.intervalIds.push(setInterval(() => {
                 this.send('m', `{"p":"/userSessions/${joinRequestId}","d":{"active":true,"lastChanged":{".sv":"timestamp"}}}`);
                 this.r++;
-            }, 30000));
+            }, 30 * 1000));
         });
     }
 
@@ -357,6 +357,10 @@ function specificWorks() {
     npcs.push(new Npc("Scam", -24.3158289, -2.64733181028, 0.71720398, 0.69686328, 0.35)); // cyberpunk
     npcs.push(new Npc("Shit", -24.185439, -20.12608013, 0.6887632, 0.7249863, 0.35)); // devil
     return npcs;
+}
+
+function closeAllNpcs(respawn = false) {
+    Npc.instances.forEach(npc => npc.close(respawn));
 }
 
 function realMain() {
