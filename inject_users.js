@@ -1,9 +1,10 @@
-function logger(name) {
-    return (message) => console.log(`${name}: ${message}.`);
+function logger(name, parent = undefined) {
+    const prefix = `${parent?.prefix || ''}${name}: `
+    const logFunc = (message) => console.log(`${prefix}${message}.`);
+    logFunc.prefix = prefix
+    return logFunc;
 }
 
-// This updates from time to time and can be retrieved live from WS (todo?).
-// CUR_USEsRID = 'HHZVx41Cude2Nz202gquHBbRWPJ3';
 // This was created after uploading a file, contains a userid from upload time, might require uploading daily.
 // Edit: apparently not.
 PHOTO_LOCATION = 'https://assets.vlts.pw/profileImages/zoxvx93Fzbd2rdKZHdgqf7Nn1tq2/8Jy.png';
@@ -160,6 +161,7 @@ class AryumWS {
 class AryumCommunication extends AryumWS {
     constructor(joinRequestId, displayName = '', onCloseCallback) {
         super('wss://s-usc1a-nss-2000.firebaseio.com/.ws?v=5&ns=arium-communication', joinRequestId, onCloseCallback);
+        this.log = logger(`com`, this.log);
         this.init.then(() => {
             this.send('q', '{"p":"/userSessions","q":{"sp":"sl6wrg","ep":"sl6wrg","i":"spaceId"},"t":1,"h":""}');
             this.send('q', '{"p":"/userMetadata","q":{"sp":"sl6wrg","ep":"sl6wrg","i":"spaceId"},"t":2,"h":""}');
@@ -194,6 +196,7 @@ class AryumCommunication extends AryumWS {
 class AriumPeers extends AryumWS {
     constructor(joinRequestId, x, y, r1, r3, z, onCloseCallback) {
         super('wss://s-usc1a-nss-2048.firebaseio.com/.ws?v=5&ns=arium-peers', joinRequestId, onCloseCallback);
+        this.log = logger('peers', this.log);
         this.init.then(() => {
             this.send('q', '{"p":"/userPositions/sl6wrg","h":""}');
             this.send('q', '{"p":"/broadcasters","q":{"sp":"sl6wrg","ep":"sl6wrg","i":"spaceId"},"t":4,"h":""}');
@@ -279,7 +282,7 @@ class Npc {
                     "sec-ch-ua-mobile": "?0",
                     "sec-ch-ua-platform": "\"Chrome OS\"",
                     "sec-fetch-dest": "empty",
-                    "sec-fetch-mode": "cors",
+                    "sec-fetch-mode": "no-cors",
                     "sec-fetch-site": "cross-site",
                     "Referer": "https://arium.xyz/",
                     "Referrer-Policy": "strict-origin-when-cross-origin"
@@ -293,7 +296,7 @@ class Npc {
     close(respawn = false) {
         if (this.peers != null) this.peers.close(respawn);
         if (this.communication != null) this.communication.close(respawn);
-        if (this.peers == null && this.communication == null && respawn) {
+        if (!this.peers?.valid && this.communication?.valid && respawn) {
             this.respawn();
         }
     }
