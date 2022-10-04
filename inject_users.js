@@ -282,12 +282,13 @@ class Npc {
                     "sec-ch-ua-mobile": "?0",
                     "sec-ch-ua-platform": "\"Chrome OS\"",
                     "sec-fetch-dest": "empty",
-                    "sec-fetch-mode": "no-cors",
+                    "sec-fetch-mode": "cors",
                     "sec-fetch-site": "cross-site",
                     "Referer": "https://arium.xyz/",
-                    "Referrer-Policy": "strict-origin-when-cross-origin"
+                    "Referrer-Policy": "unsafe-url"
                 },
                 "body": "{\"data\":{\"spaceId\":\"sl6wrg\"}}",
+                "mode": "cors",
                 "method": "POST"
             }).then(response => response.json());
         });
