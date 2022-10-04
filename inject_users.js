@@ -79,7 +79,12 @@ class AryumWS {
 
         this.ws.onmessage = (event) => {
             if (!event?.data) return;
-            const pdata = JSON.parse(event.data);
+            let pdata = '';
+            try {
+                pdata = JSON.parse(event.data);
+            } catch {
+                return;
+            }
             if (pdata?.d?.b?.s === "expired_token") {
                 this.log('Expired token, closing.')
                 this.close();
@@ -194,16 +199,18 @@ class AryumCommunication extends AryumWS {
 }
 
 class AriumPeers extends AryumWS {
-    constructor(joinRequestId, x, y, r1, r3, z, onCloseCallback) {
+    constructor(joinRequestId, x, y, r1, r3, z, onCloseCallback, r0 = 0, r2 = 0) {
         super('wss://s-usc1a-nss-2048.firebaseio.com/.ws?v=5&ns=arium-peers', joinRequestId, onCloseCallback);
         this.log = logger('peers', this.log);
         this.init.then(() => {
+            /// q
             this.send('q', '{"p":"/userPositions/sl6wrg","h":""}');
             this.send('q', '{"p":"/broadcasters","q":{"sp":"sl6wrg","ep":"sl6wrg","i":"spaceId"},"t":4,"h":""}');
             this.send('q', '{"p":"/userRotations/sl6wrg","h":""}');
+            /// p
             this.send('p', `{"p":"/userDeviceOrientations/${joinRequestId}","d":{"orientation":0,"userId":"${this.uid}"}}`);
-            this.send('p', `{"p":"/userPositions/sl6wrg/${joinRequestId}","d":{"position":{"0":${x},"1":${z},"2":${y}},"userId":"${this.uid}"}}`);
-            this.send('p', `{"p":"/userRotations/sl6wrg/${joinRequestId}","d":{"quaternion":{"0":0,"1":${r1},"2":0,"3":${r3}},"userId":"${this.uid}"}}`);
+            this.updatePosition(x, y, z);
+            this.updateRotation(r1, r3, r0, r2);
             this.intervalIds.push(setInterval(() => {
                 this.sendRaw(0);
             }, 45 * 1000));
@@ -214,14 +221,14 @@ class AriumPeers extends AryumWS {
         this.send("p", `{"p":"/userPositions/sl6wrg/${this.joinRequestId}","d":{"position":{"0":${x},"1":${z},"2":${y}},"userId":"${this.uid}"}}`);
     }
 
-    updateRotation(r1, r3) {
-        this.send("p", `{"p":"/userRotations/sl6wrg/${this.joinRequestId}","d":{"quaternion":{"0":0,"1":${r1},"2":0,"3":${r3}},"userId":"${this.uid}"}}`)
+    updateRotation(r1, r3, r0 = 0, r2 = 0) {
+        this.send("p", `{"p":"/userRotations/sl6wrg/${this.joinRequestId}","d":{"quaternion":{"0":${r0},"1":${r1},"2":${r2},"3":${r3}},"userId":"${this.uid}"}}`)
     }
 }
 
 class Npc {
     static instances = [];
-    constructor(displayName = 'NFThieves', x, y, r1 = INITIAL_R1, r3 = INITIAL_R3, z = 0, photo = PHOTO_LOCATION) {
+    constructor(displayName = 'NFThieves', x, y, r1 = INITIAL_R1, r3 = INITIAL_R3, z = 0, r0 = 0, r2 = 0, photo = PHOTO_LOCATION) {
         Npc.instances.push(this);
         this.log = logger(`${displayName}`);
         this.respawnedId = '';
@@ -230,7 +237,9 @@ class Npc {
         this.x = x;
         this.y = y;
         this.z = z;
+        this.r0 = r0;
         this.r1 = r1;
+        this.r2 = r2;
         this.r3 = r3;
         this.photo = photo;
         this.init();
@@ -246,28 +255,43 @@ class Npc {
         this.communication.updatePhoto(this.displayName, photoLocation);
     }
 
+    setPosition(x, y, z = 0) {
+        this.x = x;
+        this.y = y;
+        this.z = z;
+        this.peers.updatePosition(x, y, z);
+    }
+
+    setRotations(r1, r3, r0 = 0, r2 = 0) {
+        this.r1 = r1;
+        this.r3 = r3;
+        this.r0 = r0;
+        this.r2 = r2;
+        this.peers.updateRotation(r1, r3, r0, r2);
+    }
+
     init() {
         this.log = logger(`${this.displayName}`);
         this.joinRequestId = '';
         this.communication = null;
         this.peers = null;
         retryChain(() => this.fetchJoinRequestId())
-        .catch((e) => {
-            this.log('Failed joinRequest');
-            console.error(e);
-        }).then(value => {
-            this.joinRequestId = value.result.joinRequestId;
-            this.log = logger(`${this.displayName}: ${this.joinRequestId}`);
-            this.log('constructed NPC');
-            const joinRequestId = this.joinRequestId;
-            this.communication = new AryumCommunication(this.joinRequestId, this.displayName, () => this.respawn(joinRequestId));
-            this.peers = new AriumPeers(this.joinRequestId, this.x, this.y, this.r1, this.r3, this.z, () => this.respawn(joinRequestId));
-            setTimeout(() => void this.setPhoto(this.photo), 7 * 1000);
-            console.log(this);
-        }).catch((e) => {
-            this.log('Failed constructing Npc.');
-            console.error(e);
-        });
+            .catch((e) => {
+                this.log('Failed joinRequest');
+                console.error(e);
+            }).then(value => {
+                this.joinRequestId = value.result.joinRequestId;
+                this.log = logger(`${this.displayName}: ${this.joinRequestId}`);
+                this.log('constructed NPC');
+                const joinRequestId = this.joinRequestId;
+                this.communication = new AryumCommunication(this.joinRequestId, this.displayName, () => this.respawn(joinRequestId));
+                this.peers = new AriumPeers(this.joinRequestId, this.x, this.y, this.r1, this.r3, this.z, () => this.respawn(joinRequestId), this.r0, this.r2);
+                setTimeout(() => void this.setPhoto(this.photo), 7 * 1000);
+                console.log(this);
+            }).catch((e) => {
+                this.log('Failed constructing Npc.');
+                console.error(e);
+            });
     }
 
     fetchJoinRequestId() {
@@ -313,31 +337,48 @@ class Npc {
 
 // Scripts
 
-function grid() {
+function grid(rows = 1, cols = 1) {
     const npcs = [];
-    for (let x_offset = 0; x_offset < 1; x_offset++) {
-        for (let y_offset = 0; y_offset < 1; y_offset++) {
+    for (let x_offset = 0; x_offset < rows; x_offset++) {
+        for (let y_offset = 0; y_offset < rows; y_offset++) {
             const x = INITIAL_X + x_offset * OFFSET_STEP;
             const y = INITIAL_Y + y_offset * OFFSET_STEP;
             npcs.push(new Npc(`rick_${x_offset}_${y_offset}`, x, y));
         }
     }
+    return npcs;
 }
 
-function rotate() {
-    rr1 = new Npc("r1", INITIAL_X - 4, INITIAL_Y - 4);
+function smartGrid(x_start=15, y_start=-17, x_end=-10, y_end=-11, rows=5, cols=4) {
+    const lerp = (x, y, a) => x * (1 - a) + y * a;
+    const clamp = (a, min = 0, max = 1) => Math.min(max, Math.max(min, a));
+    const invlerp = (x, y, a) => clamp((a - x) / (y - x));
+    const range = (x1, y1, x2, y2, a) => lerp(x2, y2, invlerp(x1, y1, a));
+    
+    const displayNameFunc = (row, col) => {
+        const words = [
+            "Never|gonna|give|you|up".split('|').reverse(),
+            "Never|gonna|let|you|down".split('|').reverse(),
+        ];
+        const rIndex = col % words.length;
+        return words[rIndex][row % words[rIndex].length];
+    };
 
-    setInterval(() => {
-        rr1.incrementR1();
-    }, 500);
-}
-
-function setPhotoWithDelay(npcs, delay) {
-    setTimeout(() => {
-        npcs.forEach(npc => {
-            npc.setPhoto(PHOTO_LOCATION);
-        });
-    }, delay);
+    const zFunc = (x, y) => {
+        return range(y_start, y_end, -0.5, 2, y);
+    }
+    const npcs = [];
+    for (let row = 0; row < rows; row++) {
+        const x = range(0, rows - 1, x_start, x_end, row);
+        for (let col = 0; col < cols; col++) {
+            const y = range(0, cols - 1, y_start, y_end, col);
+            setTimeout(() => { npcs.push(new Npc(displayNameFunc(row, col), x, y, 1, 0, zFunc(x, y))); },
+                (row * cols + col) * 1.5 * 1000);
+        }
+    }
+    return new Promise((resolve) => {
+        setTimeout(() => resolve(npcs), rows * cols * 1.5 * 1000 + 1000)
+    });
 }
 
 function tama() {
@@ -360,6 +401,18 @@ function specificWorks() {
     return npcs;
 }
 
+function wall() {
+    const npcs = [];
+    npcs.push(new Npc('wall', 0, 0, 1, 1, 35, Math.PI / 4, 4));
+    return npcs;
+}
+
+function flyingNFThieves() {
+    const npcs = [];
+    npcs.push(new Npc('NFThieves', -3, 3.8, 0.95, 1.05, 1, -0.1, 0));
+    return npcs;
+}
+
 function closeAllNpcs(respawn = false) {
     Npc.instances.forEach(npc => npc.close(respawn));
 }
@@ -368,6 +421,9 @@ function realMain() {
     getAuthKey().then(() => {
         tama();
         specificWorks();
+        wall();
+        flyingNFThieves();
+        smartGrid();
     });
 }
 
