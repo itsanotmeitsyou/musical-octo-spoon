@@ -99,7 +99,7 @@ class AryumWS {
         this.init = new Promise((resolve, reject) => {
             let hasAuth = false;
             let hasUid = false;
-            let max_tries = 10;
+            let max_tries = 15;
             this.sendSdk();
             this.sendAuth().then(() => { hasAuth = true; });
             let intervalId;
@@ -113,11 +113,11 @@ class AryumWS {
                     clearInterval(intervalId);
                     return reject();
                 }
-            }, 1000)
+            }, 15 * 1000)
         }).catch(() => {
             this.log('could not get credentials, closing.');
             this.close();
-        });;
+        });
 
 
         this.intervalIds.push(setInterval(() => this.flush(), 1000));
@@ -148,6 +148,7 @@ class AryumWS {
     send_(message) {
         if (!this.valid) {
             this.log('sending message after close.');
+            console.log(message);
         }
         this.q.push(message)
         this.flush();
@@ -286,7 +287,7 @@ class Npc {
                 const joinRequestId = this.joinRequestId;
                 this.communication = new AryumCommunication(this.joinRequestId, this.displayName, () => this.respawn(joinRequestId));
                 this.peers = new AriumPeers(this.joinRequestId, this.x, this.y, this.r1, this.r3, this.z, () => this.respawn(joinRequestId), this.r0, this.r2);
-                setTimeout(() => void this.setPhoto(this.photo), 7 * 1000);
+                setTimeout(() => void this.setPhoto(this.photo), 15 * 1000);
                 console.log(this);
             }).catch((e) => {
                 this.log('Failed constructing Npc.');
@@ -349,7 +350,7 @@ function grid(rows = 1, cols = 1) {
     return npcs;
 }
 
-function smartGrid(x_start=15, y_start=-17, x_end=-10, y_end=-11, rows=5, cols=4) {
+function smartGrid(x_start=-15, y_start=-17, x_end=-10, y_end=-11, rows=5, cols=4) {
     const lerp = (x, y, a) => x * (1 - a) + y * a;
     const clamp = (a, min = 0, max = 1) => Math.min(max, Math.max(min, a));
     const invlerp = (x, y, a) => clamp((a - x) / (y - x));
@@ -419,11 +420,11 @@ function closeAllNpcs(respawn = false) {
 
 function realMain() {
     getAuthKey().then(() => {
-        tama();
-        specificWorks();
-        wall();
-        flyingNFThieves();
-        smartGrid();
+        window.npcTama = tama();
+        window.npcWorks = specificWorks();
+        window.npcWall = wall();
+        window.npcFlying = flyingNFThieves();
+        window.npcGrid = smartGrid();
     });
 }
 
