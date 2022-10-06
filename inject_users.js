@@ -318,8 +318,8 @@ class Npc {
         this.peers.updateRotation(r1, r3, r0, r2);
     }
 
-    static timeToZOffset(time, boune = 0.1) {
-        return Math.sin(time / 1000 * 2) * 0.1;
+    static timeToZOffset(time, bounce = 0.1) {
+        return Math.sin(time / 1000 * 2) * bounce;
     }
 
     jiggle() {
