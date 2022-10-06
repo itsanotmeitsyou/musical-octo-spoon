@@ -252,7 +252,39 @@ class Npc {
         this.r2 = r2;
         this.r3 = r3;
         this.photo = photo;
+
+        this.intervalIds = [];
+
         this.init();
+    }
+
+    init() {
+        this.log = logger(`${this.displayName}`);
+        this.joinRequestId = '';
+        this.communication = null;
+        this.peers = null;
+        this.intervalIds.forEach((id) => clearInterval(id));
+        this.intervalIds.length = 0;
+        retryChain(() => this.fetchJoinRequestId())
+            .catch((e) => {
+                this.log('Failed joinRequest');
+                console.error(e);
+            }).then(value => {
+                this.joinRequestId = value.result.joinRequestId;
+                this.log = logger(`${this.displayName}: ${this.joinRequestId}`);
+                this.log('constructed NPC');
+                const joinRequestId = this.joinRequestId;
+                this.communication = new AryumCommunication(this.joinRequestId, this.displayName, () => this.respawn(joinRequestId));
+                this.peers = new AriumPeers(this.joinRequestId, this.x, this.y, this.r1, this.r3, this.z, () => this.respawn(joinRequestId), this.r0, this.r2);
+                setTimeout(() => void this.setPhoto(this.photo), 15 * 1000);
+                console.log(this);
+            }).then(() => {
+                this.intervalIds.push(setInterval(() => this.jiggle(), 100));
+            })
+            .catch((e) => {
+                this.log('Failed constructing Npc.');
+                console.error(e);
+            });
     }
 
     setDisplayName(displayName) {
@@ -280,28 +312,8 @@ class Npc {
         this.peers.updateRotation(r1, r3, r0, r2);
     }
 
-    init() {
-        this.log = logger(`${this.displayName}`);
-        this.joinRequestId = '';
-        this.communication = null;
-        this.peers = null;
-        retryChain(() => this.fetchJoinRequestId())
-            .catch((e) => {
-                this.log('Failed joinRequest');
-                console.error(e);
-            }).then(value => {
-                this.joinRequestId = value.result.joinRequestId;
-                this.log = logger(`${this.displayName}: ${this.joinRequestId}`);
-                this.log('constructed NPC');
-                const joinRequestId = this.joinRequestId;
-                this.communication = new AryumCommunication(this.joinRequestId, this.displayName, () => this.respawn(joinRequestId));
-                this.peers = new AriumPeers(this.joinRequestId, this.x, this.y, this.r1, this.r3, this.z, () => this.respawn(joinRequestId), this.r0, this.r2);
-                setTimeout(() => void this.setPhoto(this.photo), 15 * 1000);
-                console.log(this);
-            }).catch((e) => {
-                this.log('Failed constructing Npc.');
-                console.error(e);
-            });
+    jiggle() {
+        this.setPosition(this.x, this.y, this.z + Math.sin(Date.now() / 1000) * 0.1);
     }
 
     fetchJoinRequestId() {
@@ -331,7 +343,7 @@ class Npc {
     close(respawn = false) {
         if (this.peers != null) this.peers.close(respawn);
         if (this.communication != null) this.communication.close(respawn);
-        if (!this.peers?.valid && this.communication?.valid && respawn) {
+        if (!this.peers?.valid && !this.communication?.valid && respawn) {
             this.respawn();
         }
     }
