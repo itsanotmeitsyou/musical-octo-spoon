@@ -1,6 +1,14 @@
+function formatDate(date) {
+    try {
+        return `${date.toLocaleDateString(['iw-il'])} ${date.toTimeString().split(' ')[0]} `;
+    } catch {
+        return '';
+    }
+}
+
 function logger(name, parent = undefined) {
-    const prefix = `${parent?.prefix || ''}${name}: `
-    const logFunc = (message) => console.log(`${prefix}${message}.`);
+    const prefix = `${parent?.prefix || ''}${name}: `;
+    const logFunc = (message) => console.log(`${formatDate(new Date())}${prefix}${message}.`);
     logFunc.prefix = prefix
     return logFunc;
 }
@@ -74,7 +82,7 @@ class AryumWS {
             });
             this.intervalIds.length = 0;
             this.valid = false;
-            if (this.useCallback) onCloseCallback();
+            if (this.useCallback) setTimeout(() => onCloseCallback(), (10 + Math.random() * 10) * 1000);
         };
 
         this.ws.onmessage = (event) => {
@@ -232,9 +240,10 @@ class Npc {
     constructor(displayName = 'NFThieves', x, y, r1 = INITIAL_R1, r3 = INITIAL_R3, z = 0, r0 = 0, r2 = 0, photo = PHOTO_LOCATION) {
         Npc.instances.push(this);
         this.log = logger(`${displayName}`);
+        this.displayName = displayName;
+        this.joinRequestId = '';
         this.respawnedId = '';
 
-        this.displayName = displayName;
         this.x = x;
         this.y = y;
         this.z = z;
@@ -427,5 +436,3 @@ function realMain() {
         window.npcGrid = smartGrid();
     });
 }
-
-realMain();
