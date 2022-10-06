@@ -255,16 +255,13 @@ class Npc {
 
         this.intervalIds = [];
 
+        this.zRand = Math.random() * 1000;
+
         this.init();
     }
 
     init() {
-        this.log = logger(`${this.displayName}`);
-        this.joinRequestId = '';
-        this.communication = null;
-        this.peers = null;
-        this.intervalIds.forEach((id) => clearInterval(id));
-        this.intervalIds.length = 0;
+        this.resetFields();
         retryChain(() => this.fetchJoinRequestId())
             .catch((e) => {
                 this.log('Failed joinRequest');
@@ -285,6 +282,15 @@ class Npc {
                 this.log('Failed constructing Npc.');
                 console.error(e);
             });
+    }
+
+    resetFields() {
+        this.log = logger(`${this.displayName}`);
+        this.joinRequestId = '';
+        this.communication = null;
+        this.peers = null;
+        this.intervalIds.forEach((id) => clearInterval(id));
+        this.intervalIds.length = 0;
     }
 
     setDisplayName(displayName) {
@@ -312,8 +318,15 @@ class Npc {
         this.peers.updateRotation(r1, r3, r0, r2);
     }
 
+    static timeToZOffset(time, boune = 0.1) {
+        return Math.sin(time / 1000 * 2) * 0.1;
+    }
+
     jiggle() {
-        this.setPosition(this.x, this.y, this.z + Math.sin(Date.now() / 1000) * 0.1);
+        // weird walkaround because setPosition changes this.z.
+        const z = this.z;
+        this.setPosition(this.x, this.y, this.z + Npc.timeToZOffset(Date.now() + this.zRand));
+        this.z = z;
     }
 
     fetchJoinRequestId() {
@@ -346,6 +359,7 @@ class Npc {
         if (!this.peers?.valid && !this.communication?.valid && respawn) {
             this.respawn();
         }
+        this.resetFields();
     }
 
     respawn(forId) {
