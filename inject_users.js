@@ -211,6 +211,7 @@ class AriumPeers extends AryumWS {
     constructor(joinRequestId, x, y, r1, r3, z, onCloseCallback, r0 = 0, r2 = 0) {
         super('wss://s-usc1a-nss-2048.firebaseio.com/.ws?v=5&ns=arium-peers', joinRequestId, onCloseCallback);
         this.log = logger('peers', this.log);
+        this.initialized = false;
         this.init.then(() => {
             /// q
             this.send('q', '{"p":"/userPositions/sl6wrg","h":""}');
@@ -220,6 +221,7 @@ class AriumPeers extends AryumWS {
             this.send('p', `{"p":"/userDeviceOrientations/${joinRequestId}","d":{"orientation":0,"userId":"${this.uid}"}}`);
             this.updatePosition(x, y, z);
             this.updateRotation(r1, r3, r0, r2);
+            setTimeout(() => this.initialized = true, 500);
             this.intervalIds.push(setInterval(() => {
                 this.sendRaw(0);
             }, 45 * 1000));
@@ -324,6 +326,7 @@ class Npc {
 
     jiggle() {
         // weird walkaround because setPosition changes this.z.
+        if (!this.peers?.uid || !this.peers?.initialized) return;
         const z = this.z;
         this.setPosition(this.x, this.y, this.z + Npc.timeToZOffset(Date.now() + this.zRand));
         this.z = z;
